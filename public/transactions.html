@@ -31,6 +31,13 @@
 
   <script>
     // =======================
+    // 🌐 Detectar entorno (local o Railway)
+    // =======================
+    const API_BASE = window.location.origin.includes("localhost")
+      ? "http://localhost:3000"
+      : "https://cafecito-loyalty-program-production.up.railway.app";
+
+    // =======================
     // 🔐 Verificar sesión activa
     // =======================
     const token = localStorage.getItem("token");
@@ -50,6 +57,7 @@
         logoutBtn.onclick = () => {
           localStorage.removeItem("token");
           localStorage.removeItem("usuario");
+          localStorage.removeItem("clienteId");
           window.location.href = "login.html";
         };
         container.prepend(logoutBtn);
@@ -59,13 +67,10 @@
     // =======================
     // 🔄 Cargar transacciones
     // =======================
-
-
     const clienteId = localStorage.getItem("clienteId");
     const apiURL = clienteId
-      ? `http://localhost:3000/api/transactions/cliente/${clienteId}`
-      : `http://localhost:3000/api/transactions`;
-      
+      ? `${API_BASE}/api/transactions/cliente/${clienteId}`
+      : `${API_BASE}/api/transactions`;
 
     async function loadTransactions() {
       try {
@@ -75,9 +80,7 @@
           },
         });
 
-        if (!res.ok) {
-          throw new Error("HTTP " + res.status);
-        }
+        if (!res.ok) throw new Error("HTTP " + res.status);
 
         const data = await res.json();
         const table = document.getElementById("transactionsTable");

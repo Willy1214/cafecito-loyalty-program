@@ -37,6 +37,13 @@
     </div>
   </div>
 
+  <!-- 🌐 Detecta el entorno antes de cargar app.js -->
+  <script>
+    window.API_BASE = window.location.origin.includes("localhost")
+      ? "http://localhost:3000"
+      : "https://cafecito-loyalty-program-production.up.railway.app";
+  </script>
+
   <script src="app.js"></script>
 </body>
 </html>

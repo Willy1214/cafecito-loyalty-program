@@ -27,7 +27,12 @@
   </div>
 
   <script>
-    const apiURL = "http://localhost:3000/api/users/login";
+    // 🌐 Detecta entorno automáticamente
+    const apiBase = window.location.origin.includes("localhost")
+      ? "http://localhost:3000"
+      : "https://cafecito-loyalty-program-production.up.railway.app";
+
+    const apiURL = `${apiBase}/api/users/login`;
 
     document.getElementById("loginBtn").addEventListener("click", async () => {
       const email = document.getElementById("email").value.trim();
