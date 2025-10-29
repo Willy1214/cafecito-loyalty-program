@@ -10,7 +10,7 @@ if (!token) {
 // =======================
 // 📦 API base
 // =======================
-const apiURL = "http://localhost:3000/api/customers";
+const apiURL = "https://cafecito-loyalty-program-production.up.railway.app/login.html";
 
 // =======================
 // 🚪 Botón de cerrar sesión
