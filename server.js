@@ -5,34 +5,30 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const jwt = require("jsonwebtoken");
-require("dotenv").config(); // 📦 Carga variables de entorno (.env)
+require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.JWT_SECRET || "Willy123"; // 🔐 Usa variable de entorno si existe
+const SECRET_KEY = process.env.JWT_SECRET || "Willy123";
 
-// ===============================
 // Middlewares
-// ===============================
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public"))); // 📁 Archivos del frontend
+app.use(express.static(path.join(__dirname, "public")));
 
 // ===============================
 // Middleware de autenticación
 // ===============================
 function verifyToken(req, res, next) {
   const token = req.headers["authorization"];
-  if (!token) {
+  if (!token)
     return res.status(403).json({ error: "Acceso denegado. Falta token." });
-  }
 
   try {
     const decoded = jwt.verify(token.replace("Bearer ", ""), SECRET_KEY);
     req.user = decoded;
     next();
   } catch (err) {
-    console.error("❌ Token inválido:", err.message);
     return res.status(401).json({ error: "Token inválido o expirado." });
   }
 }
@@ -49,15 +45,15 @@ app.use("/api/customers", verifyToken, customerRoutes); // protegida
 app.use("/api/transactions", verifyToken, transactionRoutes); // protegida
 
 // ===============================
-// Ruta raíz (fallback para frontend)
+// Ruta por defecto (Express 5 compatible)
 // ===============================
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
+app.use((req, res) => {
+  res.status(404).json({ error: "Ruta no encontrada" });
 });
 
 // ===============================
-// Servidor activo
+// Iniciar servidor
 // ===============================
 app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en puerto ${PORT}`);
+  console.log(`✅ Servidor corriendo en http://localhost:${PORT}`);
 });
