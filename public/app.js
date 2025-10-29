@@ -1,16 +1,12 @@
 // =======================
 // 🔐 Verificar sesión activa
 // =======================
+const apiURL = "https://cafecito-loyalty-program-production.up.railway.app/api/customers";
 const token = localStorage.getItem("token");
 
 if (!token) {
   window.location.href = "login.html";
 }
-
-// =======================
-// 📦 API base
-// =======================
-const apiURL = "https://cafecito-loyalty-program-production.up.railway.app/login.html";
 
 // =======================
 // 🚪 Botón de cerrar sesión
