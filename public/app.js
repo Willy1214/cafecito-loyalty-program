@@ -1,7 +1,7 @@
 // =======================
 // 🔐 Verificar sesión activa
 // =======================
-const apiURL = "https://cafecito-loyalty-program-production.up.railway.app/api/customers";
+const BASE_URL = "https://cafecito-loyalty-program-production.up.railway.app/api/customers";
 const token = localStorage.getItem("token");
 
 if (!token) {
@@ -9,7 +9,7 @@ if (!token) {
 }
 
 // =======================
-// 🚪 Botón de cerrar sesión
+// 🚪 Cerrar sesión
 // =======================
 function logout() {
   if (confirm("¿Seguro que deseas cerrar sesión?")) {
@@ -19,7 +19,6 @@ function logout() {
   }
 }
 
-// Agregar botón al DOM al cargar
 document.addEventListener("DOMContentLoaded", () => {
   const container = document.querySelector(".container");
   if (container) {
@@ -32,14 +31,14 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // =======================
-// ➕ Agregar cliente
+// ➕ Registrar nuevo cliente
 // =======================
 document.getElementById("addBtn").addEventListener("click", async () => {
   const name = document.getElementById("name").value.trim();
-  if (!name) return alert("Please enter a name.");
+  if (!name) return alert("Por favor ingresa un nombre.");
 
   try {
-    const res = await fetch(`${apiURL}/register`, {
+    const res = await fetch(`${BASE_URL}/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -49,11 +48,19 @@ document.getElementById("addBtn").addEventListener("click", async () => {
     });
 
     const data = await res.json();
-    alert(data.mensaje || "Cliente agregado.");
+
+    if (!res.ok) {
+      alert(data.error || "Error al registrar cliente.");
+      return;
+    }
+
+    alert(data.mensaje || "✅ Cliente agregado correctamente.");
+    document.getElementById("name").value = "";
     loadCustomers();
+
   } catch (err) {
     console.error("❌ Error al registrar cliente:", err);
-    alert("Error al registrar el cliente.");
+    alert("Error al registrar el cliente (problema de conexión).");
   }
 });
 
@@ -62,40 +69,43 @@ document.getElementById("addBtn").addEventListener("click", async () => {
 // =======================
 async function loadCustomers() {
   try {
-    const res = await fetch(apiURL, {
+    const res = await fetch(BASE_URL, {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
     });
 
-    const customers = await res.json();
+    const data = await res.json();
     const table = document.getElementById("customerTable");
 
-    if (customers.length === 0) {
+    // ⚠️ Si el token no es válido
+    if (res.status === 401 || res.status === 403) {
+      alert("Tu sesión ha expirado. Inicia sesión nuevamente.");
+      logout();
+      return;
+    }
+
+    if (!Array.isArray(data) || data.length === 0) {
       table.innerHTML = `<tr><td colspan="4" class="text-center text-muted">Sin clientes registrados aún.</td></tr>`;
       return;
     }
 
-    table.innerHTML = customers
-      .map(
-        (c) => `
+    table.innerHTML = data.map(c => `
       <tr>
         <td>${c.id}</td>
         <td>${c.nombre}</td>
         <td>${c.puntos}</td>
-       <td>
-            <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">+10 pts</button>
-            <button class="btn btn-sm btn-secondary" onclick="viewTransactions(${c.id})">📜 Ver historial</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.nombre}')">🗑️ Eliminar</button>
+        <td>
+          <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">+10 pts</button>
+          <button class="btn btn-sm btn-secondary" onclick="viewTransactions(${c.id})">📜 Ver historial</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.nombre}')">🗑️ Eliminar</button>
         </td>
-
-
       </tr>
-    `
-      )
-      .join("");
+    `).join("");
+
   } catch (err) {
     console.error("❌ Error al cargar clientes:", err);
+    alert("Error al cargar la lista de clientes.");
   }
 }
 
@@ -104,7 +114,7 @@ async function loadCustomers() {
 // =======================
 async function addPoints(id) {
   try {
-    await fetch(`${apiURL}/${id}/puntos`, {
+    const res = await fetch(`${BASE_URL}/${id}/puntos`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -112,14 +122,23 @@ async function addPoints(id) {
       },
       body: JSON.stringify({ puntos: 10, motivo: "Bonus" }),
     });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Error al sumar puntos.");
+      return;
+    }
+
     loadCustomers();
   } catch (err) {
     console.error("❌ Error al sumar puntos:", err);
+    alert("No se pudieron agregar los puntos.");
   }
 }
 
 // =======================
-// 📜 Ver historial de transacciones
+// 📜 Ver historial
 // =======================
 function viewTransactions(id) {
   localStorage.setItem("clienteId", id);
@@ -127,14 +146,14 @@ function viewTransactions(id) {
 }
 
 // =======================
-//  Eliminar cliente
+// 🗑️ Eliminar cliente
 // =======================
 async function deleteCustomer(id, nombre) {
   const confirmDelete = confirm(`⚠️ ¿Seguro que deseas eliminar a "${nombre}"? Esta acción no se puede deshacer.`);
   if (!confirmDelete) return;
 
   try {
-    const res = await fetch(`${apiURL}/${id}`, {
+    const res = await fetch(`${BASE_URL}/${id}`, {
       method: "DELETE",
       headers: {
         "Authorization": `Bearer ${token}`,
@@ -148,15 +167,14 @@ async function deleteCustomer(id, nombre) {
       return;
     }
 
-    alert(data.mensaje || "Cliente eliminado.");
+    alert(data.mensaje || "🗑️ Cliente eliminado correctamente.");
     loadCustomers();
 
   } catch (err) {
     console.error("❌ Error al eliminar cliente:", err);
-    alert("Error al intentar eliminar el cliente.");
+    alert("Error de conexión al eliminar cliente.");
   }
 }
-
 
 // =======================
 // 🚀 Cargar clientes al iniciar
