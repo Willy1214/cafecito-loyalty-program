@@ -7,46 +7,58 @@ const jwt = require("jsonwebtoken");
 const db = require("../database/db");
 
 const router = express.Router();
-const SECRET_KEY = "Willy123"; // ⚠️ cámbiala en producción
+const SECRET_KEY = process.env.JWT_SECRET || "Willy123"; // 🔐 usa variable de entorno en producción
 
 // ==========================
 // REGISTRO DE USUARIO
 // ==========================
 router.post("/register", (req, res) => {
-  const { nombre, email, password } = req.body;
+  try {
+    const { nombre, email, password } = req.body;
 
-  if (!nombre || !email || !password) {
-    return res.status(400).json({ error: "Faltan datos obligatorios." });
-  }
-
-  const hashedPassword = bcrypt.hashSync(password, 10);
-
-  const query = `INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)`;
-  db.run(query, [nombre, email, hashedPassword], function (err) {
-    if (err) {
-      if (err.message.includes("UNIQUE")) {
-        return res.status(400).json({ error: "El email ya está registrado." });
-      }
-      return res.status(500).json({ error: "Error al registrar usuario." });
+    if (!nombre || !email || !password) {
+      return res.status(400).json({ error: "Faltan datos obligatorios." });
     }
-    res.json({ mensaje: "✅ Usuario registrado correctamente", id: this.lastID });
-  });
+
+    // Verificar si el email ya existe
+    const existingUser = db.prepare("SELECT * FROM usuarios WHERE email = ?").get(email);
+    if (existingUser) {
+      return res.status(400).json({ error: "El email ya está registrado." });
+    }
+
+    // Encriptar la contraseña
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
+    // Insertar nuevo usuario
+    const stmt = db.prepare("INSERT INTO usuarios (nombre, email, password) VALUES (?, ?, ?)");
+    const result = stmt.run(nombre, email, hashedPassword);
+
+    res.json({
+      mensaje: "✅ Usuario registrado correctamente",
+      id: result.lastInsertRowid,
+    });
+  } catch (err) {
+    console.error("❌ Error al registrar usuario:", err.message);
+    res.status(500).json({ error: "Error al registrar usuario." });
+  }
 });
 
 // ==========================
 // LOGIN DE USUARIO
 // ==========================
 router.post("/login", (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Faltan credenciales." });
-  }
+    if (!email || !password) {
+      return res.status(400).json({ error: "Faltan credenciales." });
+    }
 
-  const query = `SELECT * FROM usuarios WHERE email = ?`;
-  db.get(query, [email], (err, user) => {
-    if (err) return res.status(500).json({ error: "Error en el servidor." });
-    if (!user) return res.status(401).json({ error: "Usuario no encontrado." });
+    const user = db.prepare("SELECT * FROM usuarios WHERE email = ?").get(email);
+
+    if (!user) {
+      return res.status(401).json({ error: "Usuario no encontrado." });
+    }
 
     const validPassword = bcrypt.compareSync(password, user.password);
     if (!validPassword) {
@@ -69,7 +81,10 @@ router.post("/login", (req, res) => {
         rol: user.rol,
       },
     });
-  });
+  } catch (err) {
+    console.error("❌ Error en el login:", err.message);
+    res.status(500).json({ error: "Error en el servidor." });
+  }
 });
 
 module.exports = router;

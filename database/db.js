@@ -1,26 +1,26 @@
 // ===============================
-// CONFIGURACIÓN DE LA BASE DE DATOS
+// CONFIGURACIÓN DE LA BASE DE DATOS (better-sqlite3)
 // ===============================
+const Database = require("better-sqlite3");
+const path = require("path");
 
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+// Usa una variable de entorno para la base de datos si estás en Railway
+const dbPath = process.env.DB_PATH || path.resolve(__dirname, "fidelidad.db");
 
-// Ruta donde se guardará el archivo de la base de datos
-const dbPath = path.resolve(__dirname, 'fidelidad.db');
+let db;
+try {
+  db = new Database(dbPath);
+  console.log(`✅ Base de datos conectada en: ${dbPath}`);
+} catch (err) {
+  console.error("❌ Error al conectar la base de datos:", err.message);
+  process.exit(1);
+}
 
-// Crear (o abrir si ya existe) la base de datos
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('❌ Error al conectar la base de datos:', err.message);
-  } else {
-    console.log('✅ Base de datos conectada en', dbPath);
-  }
-});
-
-// Crear tablas si no existen
-db.serialize(() => {
-  // Tabla de usuarios
-  db.run(`
+// ===============================
+// CREACIÓN DE TABLAS (si no existen)
+// ===============================
+const createTables = () => {
+  db.prepare(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
@@ -28,20 +28,18 @@ db.serialize(() => {
       password TEXT NOT NULL,
       rol TEXT DEFAULT 'cliente'
     )
-  `);
+  `).run();
 
-  // Tabla de clientes
-  db.run(`
+  db.prepare(`
     CREATE TABLE IF NOT EXISTS clientes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
       puntos INTEGER DEFAULT 0,
       nivel TEXT DEFAULT 'Bronce'
     )
-  `);
+  `).run();
 
-  // Tabla de transacciones
-  db.run(`
+  db.prepare(`
     CREATE TABLE IF NOT EXISTS transacciones (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       cliente_id INTEGER,
@@ -50,7 +48,13 @@ db.serialize(() => {
       motivo TEXT,
       FOREIGN KEY (cliente_id) REFERENCES clientes(id)
     )
-  `);
-});
+  `).run();
 
+  console.log("📦 Tablas verificadas o creadas correctamente.");
+};
+
+// Ejecutar creación de tablas
+createTables();
+
+// Exportar la instancia de la base de datos
 module.exports = db;

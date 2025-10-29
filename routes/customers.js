@@ -1,115 +1,107 @@
 // ==================================
-// RUTAS DE CLIENTES
+// RUTAS DE CLIENTES (better-sqlite3)
 // ==================================
 const express = require("express");
 const router = express.Router();
-const db = require("../database/db");
+const db = require("../database/db"); // Asegúrate de que este usa better-sqlite3
 
 // ==========================
 // Registrar nuevo cliente
 // ==========================
 router.post("/register", (req, res) => {
-  const { nombre } = req.body;
+  try {
+    const { nombre } = req.body;
 
-  if (!nombre) {
-    return res.status(400).json({ error: "Falta el nombre del cliente." });
-  }
-
-  const query = `INSERT INTO clientes (nombre) VALUES (?)`;
-  db.run(query, [nombre], function (err) {
-    if (err) {
-      console.error("❌ Error al registrar cliente:", err.message);
-      return res.status(500).json({ error: "Error al registrar cliente." });
+    if (!nombre || nombre.trim() === "") {
+      return res.status(400).json({ error: "Falta el nombre del cliente." });
     }
+
+    const stmt = db.prepare("INSERT INTO clientes (nombre) VALUES (?)");
+    const result = stmt.run(nombre.trim());
+
     res.json({
       mensaje: "✅ Cliente registrado correctamente",
-      id: this.lastID,
+      id: result.lastInsertRowid,
     });
-  });
+  } catch (err) {
+    console.error("❌ Error al registrar cliente:", err.message);
+    res.status(500).json({ error: "Error al registrar cliente." });
+  }
 });
 
 // ==========================
 // Obtener lista de clientes
 // ==========================
 router.get("/", (req, res) => {
-  const query = `SELECT * FROM clientes ORDER BY id DESC`;
-  db.all(query, [], (err, rows) => {
-    if (err) {
-      console.error("❌ Error al obtener clientes:", err.message);
-      return res.status(500).json({ error: "Error al obtener clientes." });
-    }
-    res.json(rows);
-  });
+  try {
+    const clientes = db.prepare("SELECT * FROM clientes ORDER BY id DESC").all();
+    res.json(clientes);
+  } catch (err) {
+    console.error("❌ Error al obtener clientes:", err.message);
+    res.status(500).json({ error: "Error al obtener clientes." });
+  }
 });
 
 // ==========================
 // Actualizar puntos de cliente
 // ==========================
 router.put("/:id/puntos", (req, res) => {
-  const { id } = req.params;
-  const { puntos, motivo } = req.body;
+  try {
+    const { id } = req.params;
+    const { puntos, motivo } = req.body;
 
-  if (typeof puntos !== "number") {
-    return res.status(400).json({ error: "El valor de puntos debe ser numérico." });
-  }
-
-  // Registrar la transacción primero
-  const fecha = new Date().toISOString();
-  db.run(
-    `INSERT INTO transacciones (cliente_id, fecha, puntos, motivo) VALUES (?, ?, ?, ?)`,
-    [id, fecha, puntos, motivo || "Ajuste manual"],
-    function (err) {
-      if (err) {
-        console.error("❌ Error al registrar transacción:", err.message);
-        return res.status(500).json({ error: "Error al registrar transacción." });
-      }
-
-      // Actualizar el saldo de puntos en la tabla clientes
-      db.run(
-        `UPDATE clientes SET puntos = puntos + ? WHERE id = ?`,
-        [puntos, id],
-        function (err) {
-          if (err) {
-            console.error("❌ Error al actualizar puntos:", err.message);
-            return res.status(500).json({ error: "Error al actualizar puntos." });
-          }
-          res.json({ mensaje: "✅ Puntos actualizados correctamente" });
-        }
-      );
+    if (typeof puntos !== "number") {
+      return res.status(400).json({ error: "El valor de puntos debe ser numérico." });
     }
-  );
+
+    const fecha = new Date().toISOString();
+
+    // Registrar transacción
+    const insertTrans = db.prepare(`
+      INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
+      VALUES (?, ?, ?, ?)
+    `);
+    insertTrans.run(id, fecha, puntos, motivo || "Ajuste manual");
+
+    // Actualizar puntos del cliente
+    const updateClient = db.prepare(`
+      UPDATE clientes SET puntos = puntos + ? WHERE id = ?
+    `);
+    const result = updateClient.run(puntos, id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Cliente no encontrado." });
+    }
+
+    res.json({ mensaje: "✅ Puntos actualizados correctamente" });
+  } catch (err) {
+    console.error("❌ Error al actualizar puntos:", err.message);
+    res.status(500).json({ error: "Error al actualizar puntos." });
+  }
 });
 
 // ==========================
 // ❌ Eliminar cliente por ID
 // ==========================
 router.delete("/:id", (req, res) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-  // Primero eliminar transacciones asociadas
-  const deleteTransactions = `DELETE FROM transacciones WHERE cliente_id = ?`;
-  db.run(deleteTransactions, [id], function (err) {
-    if (err) {
-      console.error("❌ Error eliminando transacciones:", err.message);
-      return res.status(500).json({ error: "Error al eliminar transacciones." });
+    const deleteTrans = db.prepare("DELETE FROM transacciones WHERE cliente_id = ?");
+    deleteTrans.run(id);
+
+    const deleteClient = db.prepare("DELETE FROM clientes WHERE id = ?");
+    const result = deleteClient.run(id);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: "Cliente no encontrado." });
     }
 
-    // Luego eliminar el cliente
-    const deleteClient = `DELETE FROM clientes WHERE id = ?`;
-    db.run(deleteClient, [id], function (err2) {
-      if (err2) {
-        console.error("❌ Error eliminando cliente:", err2.message);
-        return res.status(500).json({ error: "Error al eliminar cliente." });
-      }
-
-      if (this.changes === 0) {
-        return res.status(404).json({ error: "Cliente no encontrado." });
-      }
-
-      res.json({ mensaje: "🗑️ Cliente eliminado correctamente." });
-    });
-  });
+    res.json({ mensaje: "🗑️ Cliente y sus transacciones eliminados correctamente." });
+  } catch (err) {
+    console.error("❌ Error eliminando cliente:", err.message);
+    res.status(500).json({ error: "Error eliminando cliente." });
+  }
 });
-
 
 module.exports = router;
