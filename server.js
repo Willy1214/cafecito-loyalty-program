@@ -45,10 +45,14 @@ function verifyToken(req, res, next) {
 const userRoutes = require("./routes/users");
 const customerRoutes = require("./routes/customers");
 const transactionRoutes = require("./routes/transactions");
+const squareWebhook = require("./routes/square");
+
+
 
 app.use("/api/users", userRoutes); // pública
 app.use("/api/customers", verifyToken, customerRoutes); // protegida
 app.use("/api/transactions", verifyToken, transactionRoutes); // protegida
+app.use("/api/square", squareWebhook);
 
 // ===============================
 // ⚠️ Ruta por defecto
