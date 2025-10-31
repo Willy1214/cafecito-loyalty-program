@@ -1,40 +1,39 @@
-// ==================================
-// RUTA: Webhook de Square
-// ==================================
+// ===============================
+// 💳 Webhook de Square
+// ===============================
 const express = require("express");
-const crypto = require("crypto");
 const router = express.Router();
+const db = require("../config/db"); // tu conexión a SQLite
 require("dotenv").config();
 
-router.post("/webhook", express.json({ type: "*/*" }), (req, res) => {
+// Recibir eventos desde Square
+router.post("/webhook", async (req, res) => {
   try {
-    const signature = req.headers["x-square-hmacsha256-signature"];
-    const body = JSON.stringify(req.body);
-    const webhookSecret = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+    const event = req.body;
 
-    // ✅ Verificar firma de Square
-    const hmac = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(body)
-      .digest("base64");
+    // 1️⃣ Verifica tipo de evento
+    if (event.type === "payment.created") {
+      const payment = event.data.object.payment;
 
-    if (hmac !== signature) {
-      console.warn("❌ Firma de Square no válida");
-      return res.status(401).send("Firma no válida");
+      // 2️⃣ Verifica si es una bebida
+      if (payment.note && payment.note.toLowerCase().includes("bebida")) {
+        console.log("🥤 Pago detectado:", payment.note);
+
+        // ⚙️ Lógica temporal: asignar cliente fijo o buscarlo por email si existiera
+        const clienteId = 1; // TODO: más adelante lo vinculamos con cliente real
+
+        // 3️⃣ Actualizar puntos en la BD
+        const stmt = db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?");
+        stmt.run(clienteId);
+
+        console.log(`✅ +1 punto agregado al cliente ID ${clienteId}`);
+      }
     }
 
-    // 📦 Procesar evento
-    const eventType = req.body.type;
-    console.log(`📬 Evento recibido de Square: ${eventType}`);
-
-    // Aquí podrías filtrar:
-    // if (eventType === "payment.created") { ... }
-    // if (eventType === "payment.updated") { ... }
-
-    res.status(200).send("✅ Evento recibido correctamente");
+    res.status(200).send("OK");
   } catch (err) {
-    console.error("❌ Error procesando webhook:", err.message);
-    res.status(500).send("Error interno del servidor");
+    console.error("❌ Error procesando webhook:", err);
+    res.status(500).send("Error interno");
   }
 });
 
