@@ -4,7 +4,7 @@
 const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
-const db = require("../config/db");
+const db = require("../database/db");
 require("dotenv").config();
 
 // Middleware para capturar el "raw body" del request
