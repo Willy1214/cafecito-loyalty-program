@@ -1,68 +1,64 @@
 // ===============================
-// 💳 Webhook de Square (con verificación de firma)
+// 💳 Webhook de Square
 // ===============================
 const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
-const db = require("../database/db");
+const db = require("../config/db");
 require("dotenv").config();
 
-const WEBHOOK_SIGNATURE_KEY = process.env.WEBHOOK_SIGNATURE_KEY;
-
-// ✅ Middleware para procesar el body sin que se pierdan los datos sin procesar
+// Middleware para capturar el "raw body" del request
 router.use(
   express.json({
     verify: (req, res, buf) => {
-      req.rawBody = buf.toString();
+      req.rawBody = buf.toString(); // guardamos el cuerpo crudo antes de parsearlo
     },
   })
 );
 
-// 🧠 Función para verificar la firma del webhook
 function isValidSquareSignature(req) {
-  const signature = req.headers["x-square-signature"];
-  const body = req.rawBody;
+  try {
+    const signature = req.headers["x-square-hmacsha256-signature"];
+    const webhookSignatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 
-  if (!signature || !WEBHOOK_SIGNATURE_KEY) {
-    console.error("⚠️ Falta firma o clave del webhook");
+    if (!signature || !webhookSignatureKey) {
+      console.error("⚠️ Faltan datos de firma o clave de Square");
+      return false;
+    }
+
+    const body = req.rawBody; // usamos el body crudo
+    const hmac = crypto.createHmac("sha256", webhookSignatureKey);
+    hmac.update(body);
+    const hash = hmac.digest("base64");
+
+    return hash === signature;
+  } catch (err) {
+    console.error("❌ Error verificando firma:", err);
     return false;
   }
-
-  const hash = crypto
-    .createHmac("sha1", WEBHOOK_SIGNATURE_KEY)
-    .update(body)
-    .digest("base64");
-
-  return hash === signature;
 }
 
-// 📨 Ruta para recibir webhooks
 router.post("/webhook", async (req, res) => {
   try {
-    // 1️⃣ Verificar firma
+    // ✅ Verificar firma
     if (!isValidSquareSignature(req)) {
-      console.error("❌ Firma inválida o clave ausente");
-      return res.status(401).send("Invalid signature");
+      console.error("❌ Firma inválida — posible petición no autorizada");
+      return res.status(401).send("Firma inválida");
     }
 
     const event = req.body;
+    console.log("📩 Webhook recibido:", event.type);
 
-    // 2️⃣ Procesar evento
     if (event.type === "payment.created") {
       const payment = event.data.object.payment;
+      console.log("💳 Pago recibido:", payment.note || "(sin nota)");
 
+      // Si el pago fue por una bebida, suma un punto
       if (payment.note && payment.note.toLowerCase().includes("bebida")) {
-        console.log("🥤 Pago detectado:", payment.note);
-
-        // Cliente de ejemplo (más adelante lo vinculamos por ID o correo)
-        const clienteId = 1;
-
-        const stmt = db.prepare(
-          "UPDATE clientes SET puntos = puntos + 1 WHERE id = ?"
-        );
+        const clienteId = 1; // temporal
+        const stmt = db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?");
         stmt.run(clienteId);
-
-        console.log(`✅ +1 punto agregado al cliente ID ${clienteId}`);
+        console.log(`🥤 Punto agregado al cliente ${clienteId}`);
       }
     }
 
