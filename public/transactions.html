@@ -31,9 +31,10 @@
 
   <script>
     // =======================
-    // 🌐 Detectar entorno (local o Railway)
+    // 🌐 Detectar entorno (local o producción)
     // =======================
-    const API_BASE = window.location.origin.includes("localhost")
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    const API_BASE = isLocal
       ? "http://localhost:3000"
       : "https://cafecito-loyalty-program-production.up.railway.app";
 
@@ -80,12 +81,20 @@
           },
         });
 
+        const table = document.getElementById("transactionsTable");
+
+        if (res.status === 401 || res.status === 403) {
+          alert("⚠️ Tu sesión ha expirado. Inicia sesión nuevamente.");
+          localStorage.clear();
+          window.location.href = "login.html";
+          return;
+        }
+
         if (!res.ok) throw new Error("HTTP " + res.status);
 
         const data = await res.json();
-        const table = document.getElementById("transactionsTable");
 
-        if (!data || data.length === 0) {
+        if (!Array.isArray(data) || data.length === 0) {
           table.innerHTML = `<tr><td colspan="5" class="text-center text-muted">Sin transacciones registradas.</td></tr>`;
           return;
         }
@@ -103,7 +112,7 @@
       } catch (err) {
         console.error("❌ Error cargando transacciones:", err);
         document.getElementById("transactionsTable").innerHTML =
-          `<tr><td colspan="5" class="text-center text-danger">Error al cargar datos</td></tr>`;
+          `<tr><td colspan="5" class="text-center text-danger">Error al cargar datos.</td></tr>`;
       }
     }
 

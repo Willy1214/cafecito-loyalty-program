@@ -1,7 +1,11 @@
 // =======================
-// 🔐 Verificar sesión activa
+// 🌐 Detectar entorno (local o producción)
 // =======================
-const BASE_URL = "https://cafecito-loyalty-program-production.up.railway.app/api/customers";
+const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const API_BASE = isLocal
+  ? "http://localhost:3000/api/customers"
+  : "https://cafecito-loyalty-program-production.up.railway.app/api/customers";
+
 const token = localStorage.getItem("token");
 
 if (!token) {
@@ -38,7 +42,7 @@ document.getElementById("addBtn").addEventListener("click", async () => {
   if (!name) return alert("Por favor ingresa un nombre.");
 
   try {
-    const res = await fetch(`${BASE_URL}/register`, {
+    const res = await fetch(`${API_BASE}/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,7 +73,7 @@ document.getElementById("addBtn").addEventListener("click", async () => {
 // =======================
 async function loadCustomers() {
   try {
-    const res = await fetch(BASE_URL, {
+    const res = await fetch(API_BASE, {
       headers: {
         "Authorization": `Bearer ${token}`,
       },
@@ -78,7 +82,7 @@ async function loadCustomers() {
     const data = await res.json();
     const table = document.getElementById("customerTable");
 
-    // ⚠️ Si el token no es válido
+    // ⚠️ Token expirado
     if (res.status === 401 || res.status === 403) {
       alert("Tu sesión ha expirado. Inicia sesión nuevamente.");
       logout();
@@ -114,7 +118,7 @@ async function loadCustomers() {
 // =======================
 async function addPoints(id) {
   try {
-    const res = await fetch(`${BASE_URL}/${id}/puntos`, {
+    const res = await fetch(`${API_BASE}/${id}/puntos`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -153,7 +157,7 @@ async function deleteCustomer(id, nombre) {
   if (!confirmDelete) return;
 
   try {
-    const res = await fetch(`${BASE_URL}/${id}`, {
+    const res = await fetch(`${API_BASE}/${id}`, {
       method: "DELETE",
       headers: {
         "Authorization": `Bearer ${token}`,
