@@ -4,7 +4,7 @@
 const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
-const db = require("../config/db");
+const db = require("../databse/db");
 require("dotenv").config();
 
 const WEBHOOK_SIGNATURE_KEY = process.env.WEBHOOK_SIGNATURE_KEY;
