@@ -12,12 +12,24 @@ const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.JWT_SECRET || "Willy123"; // ⚠️ Usa variable de entorno en producción
 
 // ===============================
-// 🧩 Middlewares
+// 🧩 Rutas (importar antes de middlewares que parsean JSON)
 // ===============================
-app.use(cors({
-  origin: "*", // Puedes restringir esto a tu dominio si quieres más seguridad
-}));
-app.use(express.json());
+const squareWebhook = require("./routes/square"); // ⚠️ Cargar antes del JSON parser
+const userRoutes = require("./routes/users");
+const customerRoutes = require("./routes/customers");
+const transactionRoutes = require("./routes/transactions");
+
+// ===============================
+// 🪝 Ruta especial: Webhook de Square
+// (Debe ir antes del express.json())
+// ===============================
+app.use("/api/square", squareWebhook);
+
+// ===============================
+// 🧩 Middlewares globales
+// ===============================
+app.use(cors({ origin: "*" }));
+app.use(express.json()); // ⚠️ Ahora sí, después del webhook
 app.use(express.static(path.join(__dirname, "public")));
 
 // ===============================
@@ -42,17 +54,9 @@ function verifyToken(req, res, next) {
 // ===============================
 // 🛠️ Rutas principales
 // ===============================
-const userRoutes = require("./routes/users");
-const customerRoutes = require("./routes/customers");
-const transactionRoutes = require("./routes/transactions");
-const squareWebhook = require("./routes/square");
-
-
-
 app.use("/api/users", userRoutes); // pública
 app.use("/api/customers", verifyToken, customerRoutes); // protegida
 app.use("/api/transactions", verifyToken, transactionRoutes); // protegida
-app.use("/api/square", squareWebhook);
 
 // ===============================
 // ⚠️ Ruta por defecto
