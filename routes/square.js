@@ -32,6 +32,10 @@ router.post(
       hmac.update(rawBody);
       const hash = hmac.digest("base64");
 
+      console.log("🧾 Raw Body usado en hash:", rawBody);
+      console.log("🔐 Hash generado localmente:", hash);
+      console.log("📦 Firma recibida de Square:", signature);
+
       if (hash !== signature) {
         console.error("❌ Firma inválida — posible petición no autorizada");
         return res.status(401).send("Firma inválida");
