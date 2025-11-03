@@ -75,3 +75,5 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
 });
+
+require("./migrateSquareField");
