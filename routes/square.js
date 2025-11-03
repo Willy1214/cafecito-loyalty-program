@@ -15,12 +15,16 @@ router.post(
     try {
       const signature = req.headers["x-square-hmacsha256-signature"];
       const webhookSignatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
-/*
+
+      console.log("📩 Webhook recibido en el servidor Square");
+      console.log("🔑 Signature Header:", signature);
+      console.log("🔑 Webhook Signature Key (desde env):", webhookSignatureKey ? "[CARGADA ✅]" : "[❌ VACÍA]");
+
       if (!signature || !webhookSignatureKey) {
         console.error("⚠️ Faltan datos de firma o clave de Square");
         return res.status(401).send("Faltan credenciales");
       }
-*/
+
       const rawBody = req.body.toString();
 
       // 🔐 Verificar firma HMAC
