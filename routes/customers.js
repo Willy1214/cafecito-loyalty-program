@@ -1,27 +1,46 @@
 // ==================================
-// RUTAS DE CLIENTES (better-sqlite3)
+// RUTAS DE CLIENTES (better-sqlite3 + Square Sync)
 // ==================================
 const express = require("express");
 const router = express.Router();
-const db = require("../database/db"); // Asegúrate de que este usa better-sqlite3
+const db = require("../database/db");
+const squareClient = require("../config/squareClient"); // 👈 conexión a Square
 
 // ==========================
 // Registrar nuevo cliente
 // ==========================
-router.post("/register", (req, res) => {
+router.post("/register", async (req, res) => {
   try {
-    const { nombre } = req.body;
+    const { nombre, email } = req.body;
 
     if (!nombre || nombre.trim() === "") {
       return res.status(400).json({ error: "Falta el nombre del cliente." });
     }
 
-    const stmt = db.prepare("INSERT INTO clientes (nombre) VALUES (?)");
-    const result = stmt.run(nombre.trim());
+    // 🧠 1️⃣ Crear cliente en Square primero
+    const { customersApi } = squareClient;
+    let squareId = null;
+
+    try {
+      const response = await customersApi.createCustomer({
+        givenName: nombre.trim(),
+        emailAddress: email || undefined,
+      });
+      squareId = response.result.customer.id;
+      console.log(`✅ Cliente creado en Square: ${nombre} (${squareId})`);
+    } catch (squareErr) {
+      console.error("⚠️ Error creando cliente en Square:", squareErr.message);
+      // Continuamos sin Square, pero avisamos
+    }
+
+    // 💾 2️⃣ Guardar cliente en la base de datos local
+    const stmt = db.prepare("INSERT INTO clientes (nombre, square_id) VALUES (?, ?)");
+    const result = stmt.run(nombre.trim(), squareId);
 
     res.json({
       mensaje: "✅ Cliente registrado correctamente",
       id: result.lastInsertRowid,
+      square_id: squareId,
     });
   } catch (err) {
     console.error("❌ Error al registrar cliente:", err.message);
