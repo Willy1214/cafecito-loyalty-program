@@ -54,14 +54,26 @@ router.post(
 
       if (event.type === "payment.created") {
         const payment = event.data.object.payment;
-        console.log("💳 Pago recibido:", payment.note || "(sin nota)");
+        const nota = payment.note?.toLowerCase() || "";
+        const customerIdSquare = payment.customer_id;
 
-        // Si fue una bebida, sumamos punto
-        if (payment.note && payment.note.toLowerCase().includes("bebida")) {
-          const clienteId = 1; // temporal
-          const stmt = db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?");
-          stmt.run(clienteId);
-          console.log(`🥤 Punto agregado al cliente ${clienteId}`);
+        console.log("💳 Pago recibido:", payment.note || "(sin nota)");
+        console.log("👤 Cliente Square ID:", customerIdSquare);
+
+        // Solo contar bebidas o cafés
+        if (/(bebida|café|capuccino|americano|latte)/i.test(nota)) {
+          // Buscar cliente en tu base local
+          const cliente = db
+            .prepare("SELECT id FROM clientes WHERE square_id = ?")
+            .get(customerIdSquare);
+
+          if (cliente) {
+            const stmt = db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?");
+            stmt.run(cliente.id);
+            console.log(`🥤 +1 punto agregado al cliente ID local ${cliente.id}`);
+          } else {
+            console.warn("⚠️ Cliente no encontrado en la base de datos con ese square_id");
+          }
         }
       }
 
