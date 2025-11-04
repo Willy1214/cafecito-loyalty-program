@@ -1,5 +1,5 @@
 // ===============================
-// CONFIGURACIÓN DE LA BASE DE DATOS (better-sqlite3)
+// 🗄️ CONFIGURACIÓN DE LA BASE DE DATOS (better-sqlite3)
 // ===============================
 const Database = require("better-sqlite3");
 const path = require("path");
@@ -17,7 +17,7 @@ try {
 }
 
 // ===============================
-// CREACIÓN DE TABLAS (si no existen)
+// 🧱 CREACIÓN DE TABLAS (si no existen)
 // ===============================
 const createTables = () => {
   db.prepare(`
@@ -36,6 +36,7 @@ const createTables = () => {
       nombre TEXT NOT NULL,
       puntos INTEGER DEFAULT 0,
       nivel TEXT DEFAULT 'Bronce'
+      -- ⚠️ Nota: square_id se agregará dinámicamente si no existe
     )
   `).run();
 
@@ -53,8 +54,26 @@ const createTables = () => {
   console.log("📦 Tablas verificadas o creadas correctamente.");
 };
 
-// Ejecutar creación de tablas
-createTables();
+// ===============================
+// 🩺 VERIFICAR Y AGREGAR COLUMNAS FALTANTES
+// ===============================
+const ensureColumnExists = (tableName, columnName, columnType) => {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const exists = columns.some(col => col.name === columnName);
 
-// Exportar la instancia de la base de datos
+  if (!exists) {
+    db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType};`).run();
+    console.log(`✅ Columna '${columnName}' agregada a la tabla '${tableName}'.`);
+  } else {
+    console.log(`⚙️ Columna '${columnName}' ya existe en '${tableName}'.`);
+  }
+};
+
+// Ejecutar funciones
+createTables();
+ensureColumnExists("clientes", "square_id", "TEXT");
+
+// ===============================
+// ✅ EXPORTAR INSTANCIA DE BASE DE DATOS
+// ===============================
 module.exports = db;
