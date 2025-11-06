@@ -124,7 +124,7 @@ async function addPoints(id) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`,
       },
-      body: JSON.stringify({ puntos: 10, motivo: "Bonus" }),
+      body: JSON.stringify({ puntos: 1, motivo: "Bonus" }),
     });
 
     const data = await res.json();
