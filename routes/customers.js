@@ -30,7 +30,6 @@ router.post("/register", async (req, res) => {
       console.log(`✅ Cliente creado en Square: ${nombre} (${squareId})`);
     } catch (squareErr) {
       console.error("⚠️ Error creando cliente en Square:", squareErr.message);
-      // Continuamos sin Square, pero avisamos
     }
 
     // 💾 2️⃣ Guardar cliente en la base de datos local
@@ -100,23 +99,41 @@ router.put("/:id/puntos", (req, res) => {
 });
 
 // ==========================
-// ❌ Eliminar cliente por ID
+// ❌ Eliminar cliente por ID (sincronizado con Square)
 // ==========================
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
 
-    const deleteTrans = db.prepare("DELETE FROM transacciones WHERE cliente_id = ?");
-    deleteTrans.run(id);
+    // 🔍 Buscar el cliente localmente para obtener su square_id
+    const cliente = db.prepare("SELECT square_id FROM clientes WHERE id = ?").get(id);
 
-    const deleteClient = db.prepare("DELETE FROM clientes WHERE id = ?");
-    const result = deleteClient.run(id);
+    if (!cliente) {
+      return res.status(404).json({ error: "Cliente no encontrado." });
+    }
+
+    // 🚮 Intentar eliminar en Square (si tiene square_id)
+    if (cliente.square_id) {
+      const { customersApi } = squareClient;
+      try {
+        await customersApi.deleteCustomer(cliente.square_id);
+        console.log(`🗑️ Cliente eliminado en Square (${cliente.square_id})`);
+      } catch (squareErr) {
+        console.warn("⚠️ No se pudo eliminar en Square:", squareErr.message);
+      }
+    }
+
+    // 🧹 Eliminar transacciones asociadas
+    db.prepare("DELETE FROM transacciones WHERE cliente_id = ?").run(id);
+
+    // 🧹 Eliminar cliente local
+    const result = db.prepare("DELETE FROM clientes WHERE id = ?").run(id);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: "Cliente no encontrado." });
     }
 
-    res.json({ mensaje: "🗑️ Cliente y sus transacciones eliminados correctamente." });
+    res.json({ mensaje: "🗑️ Cliente eliminado localmente y en Square (si aplicaba)." });
   } catch (err) {
     console.error("❌ Error eliminando cliente:", err.message);
     res.status(500).json({ error: "Error eliminando cliente." });
