@@ -100,7 +100,7 @@ async function loadCustomers() {
         <td>${c.nombre}</td>
         <td>${c.puntos}</td>
         <td>
-          <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">+10 pts</button>
+          <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">+1 pts</button>
           <button class="btn btn-sm btn-secondary" onclick="viewTransactions(${c.id})">📜 Ver historial</button>
           <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.nombre}')">🗑️ Eliminar</button>
         </td>
