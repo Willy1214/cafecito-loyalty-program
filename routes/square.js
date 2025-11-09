@@ -1,5 +1,5 @@
-// ===============================
-// 💳 Webhook de Square: puntos por “Bebidas”, subcategorías y Favoritos + registro de transacciones + sync de clientes
+/// ===============================
+// 💳 Webhook de Square: puntos por “Bebidas”, “Favoritos” + registro de transacciones + sync de clientes
 // ===============================
 const express = require("express");
 const crypto = require("crypto");
@@ -13,13 +13,13 @@ require("dotenv").config();
 // ==========================================
 router.post(
   "/webhook",
-  express.raw({ type: "*/*" }), // evita que express lo parsee (NECESARIO)
+  express.raw({ type: "*/*" }),
   async (req, res) => {
     try {
       const signature = req.headers["x-square-hmacsha256-signature"];
       const webhookSignatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
       const endpointUrl =
-        "https://cafecito-loyalty-program-production.up.railway.app/api/square/webhook"; // ⚠️ Cambia si tu endpoint cambia
+        "https://cafecito-loyalty-program-production.up.railway.app/api/square/webhook";
 
       // ===============================
       // 1️⃣ Validar firma del Webhook
@@ -63,14 +63,22 @@ router.post(
         try {
           const orderResponse = await ordersApi.retrieveOrder(orderId);
           const order = orderResponse.result.order;
-          console.log("🧩 Detalles de la orden recibida desde Square:");
-          console.log(JSON.stringify(order, null, 2));
-
 
           if (!order || !order.lineItems) {
             console.warn("⚠️ Orden sin productos asociados.");
             return res.status(200).send("OK sin productos");
           }
+
+          // 🔍 Debug detallado para inspeccionar estructura
+          console.log("🧩 Detalles de la orden recibida desde Square:");
+          console.log(
+            JSON.stringify(
+              order,
+              (key, value) =>
+                typeof value === "bigint" ? value.toString() : value,
+              2
+            )
+          );
 
           let puntosAgregados = 0;
 
@@ -89,12 +97,10 @@ router.post(
             const categoryResponse = await catalogApi.retrieveCatalogObject(categoryId);
             const categoryName = categoryResponse.result.object.categoryData.name;
 
-            console.log(`📦 Producto: ${item.name} | Categoría: ${categoryName}`);
+            console.log(`📦 Producto: ${item.name} | Categoría detectada: ${categoryName}`);
 
-            // ✅ Detectar categorías elegibles (bebidas y subcategorías)
-            const categoriasElegibles = /(bebidas|calientes|frapp[eé]s?|refrescantes|favoritos)/i;
-
-            if (categoriasElegibles.test(categoryName)) {
+            // ✅ Si la categoría contiene “Bebidas”, “Calientes”, “Refrescantes” o “Favoritos”
+            if (/bebidas|calientes|refrescantes|favoritos/i.test(categoryName)) {
               const cliente = db
                 .prepare("SELECT id FROM clientes WHERE square_id = ?")
                 .get(customerIdSquare);
