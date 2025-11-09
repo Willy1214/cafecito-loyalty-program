@@ -4,7 +4,6 @@
 const Database = require("better-sqlite3");
 const path = require("path");
 
-// 📍 Ruta de la base de datos (usa variable de entorno en Railway)
 const dbPath = process.env.DB_PATH || path.resolve(__dirname, "fidelidad.db");
 
 let db;
@@ -80,7 +79,7 @@ const ensureColumnExists = (tableName, columnName, columnType) => {
 // ===============================
 createTables();
 ensureColumnExists("clientes", "email", "TEXT");
-ensureColumnExists("clientes", "square_id", "TEXT UNIQUE");
+ensureColumnExists("clientes", "square_id", "TEXT"); // 🚫 sin UNIQUE para evitar errores
 
 console.log("✅ Base de datos lista y estructurada.");
 module.exports = db;
