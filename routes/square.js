@@ -13,7 +13,7 @@ require("dotenv").config();
 // ==========================================
 router.post(
   "/webhook",
-  express.raw({ type: "*/*" }),
+  express.raw({ type: "*/*" }), // evita que express lo parsee (NECESARIO)
   async (req, res) => {
     try {
       const signature = req.headers["x-square-hmacsha256-signature"];
