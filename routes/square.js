@@ -73,6 +73,7 @@ router.post(
 
           for (const item of order.lineItems) {
             const catalogId = item.catalogObjectId;
+            console.log(`🧠 Categoría detectada para ${item.name}: ${categoryName}`);
             if (!catalogId) continue;
 
             const catalogItemResponse = await catalogApi.retrieveCatalogObject(catalogId);
