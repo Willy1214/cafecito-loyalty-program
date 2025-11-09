@@ -1,5 +1,5 @@
-/// ===============================
-// 💳 Webhook de Square: puntos por “Bebidas”, “Favoritos” + registro de transacciones + sync de clientes
+// ===============================
+// 💳 Webhook de Square: puntos por “Bebidas”, subcategorías y “Favoritos” + registro de transacciones + sync de clientes
 // ===============================
 const express = require("express");
 const crypto = require("crypto");
@@ -69,15 +69,9 @@ router.post(
             return res.status(200).send("OK sin productos");
           }
 
-          // 🔍 Debug detallado para inspeccionar estructura
           console.log("🧩 Detalles de la orden recibida desde Square:");
           console.log(
-            JSON.stringify(
-              order,
-              (key, value) =>
-                typeof value === "bigint" ? value.toString() : value,
-              2
-            )
+            JSON.stringify(order, (k, v) => (typeof v === "bigint" ? v.toString() : v), 2)
           );
 
           let puntosAgregados = 0;
@@ -86,20 +80,28 @@ router.post(
             const catalogId = item.catalogObjectId;
             if (!catalogId) continue;
 
+            // 🔍 Buscar el producto en el catálogo
             const catalogItemResponse = await catalogApi.retrieveCatalogObject(catalogId);
             const catalogItem = catalogItemResponse.result.object;
 
-            if (!catalogItem || !catalogItem.itemData) continue;
+            if (!catalogItem || !catalogItem.itemData) {
+              console.warn(`⚠️ El producto ${item.name} no tiene datos en el catálogo.`);
+              continue;
+            }
 
-            const categoryId = catalogItem.itemData.categoryId;
-            if (!categoryId) continue;
+            // 🧭 Buscar categoría principal
+            let categoryName = "Sin categoría";
+            let categoryId = catalogItem.itemData.categoryId;
 
-            const categoryResponse = await catalogApi.retrieveCatalogObject(categoryId);
-            const categoryName = categoryResponse.result.object.categoryData.name;
+            // Si el producto tiene categoría, la obtenemos
+            if (categoryId) {
+              const categoryResponse = await catalogApi.retrieveCatalogObject(categoryId);
+              categoryName = categoryResponse.result.object.categoryData.name;
+            }
 
             console.log(`📦 Producto: ${item.name} | Categoría detectada: ${categoryName}`);
 
-            // ✅ Si la categoría contiene “Bebidas”, “Calientes”, “Refrescantes” o “Favoritos”
+            // ✅ Si la categoría o subcategoría contiene “Bebidas”, “Calientes”, “Refrescantes” o “Favoritos”
             if (/bebidas|calientes|refrescantes|favoritos/i.test(categoryName)) {
               const cliente = db
                 .prepare("SELECT id FROM clientes WHERE square_id = ?")
