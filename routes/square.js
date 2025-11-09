@@ -1,5 +1,5 @@
 // ===============================
-// 💳 Webhook de Square: puntos por “Bebidas” + registro de transacciones + sync de clientes
+// 💳 Webhook de Square: puntos por “Bebidas”, subcategorías y Favoritos + registro de transacciones + sync de clientes
 // ===============================
 const express = require("express");
 const crypto = require("crypto");
@@ -73,7 +73,6 @@ router.post(
 
           for (const item of order.lineItems) {
             const catalogId = item.catalogObjectId;
-            console.log(`🧠 Categoría detectada para ${item.name}: ${categoryName}`);
             if (!catalogId) continue;
 
             const catalogItemResponse = await catalogApi.retrieveCatalogObject(catalogId);
@@ -89,8 +88,10 @@ router.post(
 
             console.log(`📦 Producto: ${item.name} | Categoría: ${categoryName}`);
 
-            // ✅ Si la categoría contiene “Bebidas”, sumamos punto y registramos transacción
-            if (/bebidas/i.test(categoryName)) {
+            // ✅ Detectar categorías elegibles (bebidas y subcategorías)
+            const categoriasElegibles = /(bebidas|calientes|frapp[eé]s?|refrescantes|favoritos)/i;
+
+            if (categoriasElegibles.test(categoryName)) {
               const cliente = db
                 .prepare("SELECT id FROM clientes WHERE square_id = ?")
                 .get(customerIdSquare);
