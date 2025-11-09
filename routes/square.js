@@ -1,5 +1,5 @@
 // ===============================
-// 💳 Webhook de Square con detección de categoría “Bebidas” + registro de transacciones
+// 💳 Webhook de Square: puntos por “Bebidas” + registro de transacciones + sync de clientes
 // ===============================
 const express = require("express");
 const crypto = require("crypto");
@@ -13,56 +13,45 @@ require("dotenv").config();
 // ==========================================
 router.post(
   "/webhook",
-  express.raw({ type: "*/*" }), // evita que express lo parsee (NECESARIO)
+  express.raw({ type: "*/*" }),
   async (req, res) => {
     try {
       const signature = req.headers["x-square-hmacsha256-signature"];
       const webhookSignatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
       const endpointUrl =
-        "https://cafecito-loyalty-program-production.up.railway.app/api/square/webhook"; // ⚠️ tu endpoint exacto
+        "https://cafecito-loyalty-program-production.up.railway.app/api/square/webhook"; // ⚠️ Cambia si tu endpoint cambia
 
-      console.log("📩 Webhook recibido en el servidor Square");
-      console.log("🔑 Signature Header:", signature);
-      console.log(
-        "🔑 Webhook Signature Key (desde env):",
-        webhookSignatureKey ? "[CARGADA ✅]" : "[❌ VACÍA]"
-      );
-
-      // 1️⃣ Validar datos base
+      // ===============================
+      // 1️⃣ Validar firma del Webhook
+      // ===============================
       if (!signature || !webhookSignatureKey) {
         console.error("⚠️ Faltan datos de firma o clave de Square");
         return res.status(401).send("Faltan credenciales");
       }
 
       const rawBody = req.body.toString();
-
-      // 2️⃣ Crear hash usando la fórmula oficial de Square: HMAC_SHA256(endpointUrl + rawBody)
       const hmac = crypto.createHmac("sha256", webhookSignatureKey);
       hmac.update(endpointUrl + rawBody);
       const hash = hmac.digest("base64");
 
-      console.log("🧾 Raw Body usado en hash:", rawBody);
-      console.log("🔗 URL usada en hash:", endpointUrl);
-      console.log("🔐 Hash generado localmente:", hash);
-      console.log("📦 Firma recibida de Square:", signature);
-
-      // 3️⃣ Verificar coincidencia
       if (hash !== signature) {
         console.error("❌ Firma inválida — posible petición no autorizada");
         return res.status(401).send("Firma inválida");
       }
 
-      // ✅ Firma válida: procesar evento
+      // ===============================
+      // 2️⃣ Procesar evento
+      // ===============================
       const event = JSON.parse(rawBody);
-      console.log("📩 Evento recibido:", event.type);
+      console.log(`📩 Evento recibido: ${event.type}`);
 
+      // ===============================
+      // 🧾 EVENTO: Pago completado
+      // ===============================
       if (event.type === "payment.created") {
         const payment = event.data.object.payment;
         const customerIdSquare = payment.customer_id;
         const orderId = payment.order_id;
-
-        console.log("💳 Pago recibido. ID de orden:", orderId);
-        console.log("👤 Cliente Square ID:", customerIdSquare);
 
         if (!orderId) {
           console.warn("⚠️ El pago no incluye un order_id, no se puede procesar productos.");
@@ -72,7 +61,6 @@ router.post(
         const { ordersApi, catalogApi } = squareClient;
 
         try {
-          // 🧾 Obtener detalles de la orden
           const orderResponse = await ordersApi.retrieveOrder(orderId);
           const order = orderResponse.result.order;
 
@@ -87,7 +75,6 @@ router.post(
             const catalogId = item.catalogObjectId;
             if (!catalogId) continue;
 
-            // Obtener detalles del producto en el catálogo
             const catalogItemResponse = await catalogApi.retrieveCatalogObject(catalogId);
             const catalogItem = catalogItemResponse.result.object;
 
@@ -96,7 +83,6 @@ router.post(
             const categoryId = catalogItem.itemData.categoryId;
             if (!categoryId) continue;
 
-            // Obtener la categoría del producto
             const categoryResponse = await catalogApi.retrieveCatalogObject(categoryId);
             const categoryName = categoryResponse.result.object.categoryData.name;
 
@@ -109,25 +95,18 @@ router.post(
                 .get(customerIdSquare);
 
               if (cliente) {
-                // 🔹 1️⃣ Actualizar puntos
+                // 1️⃣ Actualizar puntos
                 db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?").run(cliente.id);
 
-                // 🔹 2️⃣ Registrar transacción
+                // 2️⃣ Registrar transacción
                 const fecha = new Date().toISOString();
                 db.prepare(`
                   INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
                   VALUES (?, ?, ?, ?)
-                `).run(
-                  cliente.id,
-                  fecha,
-                  1,
-                  `Compra de ${item.name} (${categoryName})`
-                );
+                `).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
 
                 puntosAgregados++;
-                console.log(
-                  `🥤 +1 punto agregado y transacción registrada para cliente ${cliente.id}`
-                );
+                console.log(`🥤 +1 punto agregado y transacción registrada para cliente ${cliente.id}`);
               } else {
                 console.warn("⚠️ Cliente no encontrado en la base de datos con ese square_id");
               }
@@ -141,6 +120,31 @@ router.post(
           }
         } catch (squareErr) {
           console.error("❌ Error al obtener detalles del pedido:", squareErr);
+        }
+      }
+
+      // ===============================
+      // 🧍 EVENTOS: Cliente creado / actualizado
+      // ===============================
+      if (event.type === "customer.created" || event.type === "customer.updated") {
+        const customer = event.data.object.customer;
+        const squareId = customer.id;
+        const nombre = customer.given_name || "Sin nombre";
+        const email = customer.email_address || null;
+
+        const existente = db
+          .prepare("SELECT id FROM clientes WHERE square_id = ?")
+          .get(squareId);
+
+        if (existente) {
+          db.prepare("UPDATE clientes SET nombre = ?, email = ? WHERE square_id = ?")
+            .run(nombre, email, squareId);
+          console.log(`🔁 Cliente actualizado (${nombre})`);
+        } else {
+          db.prepare(
+            "INSERT INTO clientes (nombre, email, square_id, puntos) VALUES (?, ?, ?, 0)"
+          ).run(nombre, email, squareId);
+          console.log(`🆕 Cliente nuevo sincronizado (${nombre})`);
         }
       }
 

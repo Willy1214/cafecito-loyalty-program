@@ -18,6 +18,7 @@ const squareWebhook = require("./routes/square"); // ⚠️ Cargar antes del JSO
 const userRoutes = require("./routes/users");
 const customerRoutes = require("./routes/customers");
 const transactionRoutes = require("./routes/transactions");
+const syncRoutes = require("./routes/syncCustomers");
 
 // ===============================
 // 🪝 Ruta especial: Webhook de Square
@@ -57,6 +58,9 @@ function verifyToken(req, res, next) {
 app.use("/api/users", userRoutes); // pública
 app.use("/api/customers", verifyToken, customerRoutes); // protegida
 app.use("/api/transactions", verifyToken, transactionRoutes); // protegida
+app.use("/api/customers", syncRoutes);
+
+
 
 // ===============================
 // ⚠️ Ruta por defecto
