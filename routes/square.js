@@ -63,6 +63,9 @@ router.post(
         try {
           const orderResponse = await ordersApi.retrieveOrder(orderId);
           const order = orderResponse.result.order;
+          console.log("🧩 Detalles de la orden recibida desde Square:");
+          console.log(JSON.stringify(order, null, 2));
+
 
           if (!order || !order.lineItems) {
             console.warn("⚠️ Orden sin productos asociados.");
