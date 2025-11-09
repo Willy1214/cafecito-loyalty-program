@@ -1,9 +1,10 @@
 // ===============================
-// CONFIGURACIÓN DE LA BASE DE DATOS (better-sqlite3)
+// 🗄️ CONFIGURACIÓN DE LA BASE DE DATOS (better-sqlite3)
 // ===============================
 const Database = require("better-sqlite3");
 const path = require("path");
 
+// 📍 Ruta de la base de datos (usa variable de entorno en Railway)
 const dbPath = process.env.DB_PATH || path.resolve(__dirname, "fidelidad.db");
 
 let db;
@@ -16,10 +17,10 @@ try {
 }
 
 // ===============================
-// CREACIÓN / ACTUALIZACIÓN DE TABLAS
+// 🧱 CREACIÓN / ACTUALIZACIÓN DE TABLAS
 // ===============================
 const createTables = () => {
-  // Tabla de usuarios
+  // 🧩 Usuarios
   db.prepare(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,29 +31,17 @@ const createTables = () => {
     )
   `).run();
 
-  // Tabla de clientes
+  // 🧩 Clientes
   db.prepare(`
     CREATE TABLE IF NOT EXISTS clientes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
-      email TEXT,
-      square_id TEXT UNIQUE,
       puntos INTEGER DEFAULT 0,
       nivel TEXT DEFAULT 'Bronce'
     )
   `).run();
 
-  // 🔄 Asegurar columnas nuevas si la tabla ya existía
-  try {
-    db.prepare("ALTER TABLE clientes ADD COLUMN email TEXT").run();
-    console.log("🆕 Columna 'email' agregada a clientes");
-  } catch {}
-  try {
-    db.prepare("ALTER TABLE clientes ADD COLUMN square_id TEXT UNIQUE").run();
-    console.log("🆕 Columna 'square_id' agregada a clientes");
-  } catch {}
-
-  // Tabla de transacciones
+  // 🧩 Transacciones
   db.prepare(`
     CREATE TABLE IF NOT EXISTS transacciones (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,8 +53,34 @@ const createTables = () => {
     )
   `).run();
 
-  console.log("📦 Tablas verificadas o actualizadas correctamente.");
+  console.log("📦 Tablas verificadas o creadas correctamente.");
 };
 
+// ===============================
+// 🩺 VERIFICAR Y AGREGAR COLUMNAS FALTANTES
+// ===============================
+const ensureColumnExists = (tableName, columnName, columnType) => {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const exists = columns.some(col => col.name === columnName);
+
+  if (!exists) {
+    try {
+      db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType};`).run();
+      console.log(`🆕 Columna '${columnName}' agregada a la tabla '${tableName}'.`);
+    } catch (err) {
+      console.error(`❌ Error al agregar columna '${columnName}' a '${tableName}':`, err.message);
+    }
+  } else {
+    console.log(`⚙️ Columna '${columnName}' ya existe en '${tableName}'.`);
+  }
+};
+
+// ===============================
+// 🚀 EJECUCIÓN
+// ===============================
 createTables();
+ensureColumnExists("clientes", "email", "TEXT");
+ensureColumnExists("clientes", "square_id", "TEXT UNIQUE");
+
+console.log("✅ Base de datos lista y estructurada.");
 module.exports = db;
