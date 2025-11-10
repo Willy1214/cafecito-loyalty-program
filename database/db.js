@@ -3,6 +3,7 @@
 // ===============================
 const Database = require("better-sqlite3");
 const path = require("path");
+const fs = require("fs");
 
 const dbPath = process.env.DB_PATH || path.resolve(__dirname, "fidelidad.db");
 
@@ -80,53 +81,39 @@ const ensureColumnExists = (tableName, columnName, columnType) => {
 };
 
 // ===============================
-// 🧼 LIMPIEZA Y RESET EN ENTORNOS DE DESARROLLO
+// 🧼 LIMPIEZA Y RESET EN ENTORNOS DE DESARROLLO / SANDBOX
 // ===============================
 const resetIfSandbox = () => {
-  const isDevOrRailway =
+  const railwayEnv = process.env.RAILWAY_ENVIRONMENT_NAME?.toLowerCase();
+  const isDevOrSandbox =
     !process.env.NODE_ENV ||
     process.env.NODE_ENV === "development" ||
-    process.env.RAILWAY_ENVIRONMENT === "sandbox" ||
+    railwayEnv === "sandbox" ||
+    railwayEnv === "preview" ||
     process.env.RAILWAY_PROJECT_NAME?.toLowerCase()?.includes("dev");
 
-  if (isDevOrRailway) {
+  if (isDevOrSandbox) {
     try {
-      // Limpiar tablas
-      db.prepare("DELETE FROM clientes").run();
-      db.prepare("DELETE FROM transacciones").run();
-      db.prepare("DELETE FROM eventos").run();
-
-      // Verificar si la tabla está vacía
-      const { cnt } = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get();
-      if (cnt === 0) {
-        console.log("🧹 Reiniciando secuencia de AUTOINCREMENT manualmente...");
-
-        // Fuerza un reinicio completo del contador usando VACUUM
-        db.prepare("DELETE FROM sqlite_sequence WHERE name='clientes'").run();
-        db.prepare("DELETE FROM sqlite_sequence WHERE name='transacciones'").run();
-        db.prepare("DELETE FROM sqlite_sequence WHERE name='usuarios'").run();
-
-        // Reajustar manualmente el contador (solo para asegurar compatibilidad)
-        db.prepare("UPDATE sqlite_sequence SET seq = 0 WHERE name='clientes'").run();
-        db.prepare("UPDATE sqlite_sequence SET seq = 0 WHERE name='transacciones'").run();
-        db.prepare("UPDATE sqlite_sequence SET seq = 0 WHERE name='usuarios'").run();
-
-        // SQLite solo aplica los cambios de secuencia al ejecutar VACUUM
-        db.prepare("VACUUM").run();
-
-        console.log("✅ Secuencia de IDs reiniciada correctamente a 1.");
+      if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath);
+        console.log("🧹 Archivo de base de datos eliminado (modo sandbox/dev).");
       } else {
-        console.log("⚙️ Clientes con registros — no se reinicia secuencia.");
+        console.log("📂 No había base de datos previa, se creará una nueva.");
       }
+
+      db = new Database(dbPath);
+      createTables();
+      ensureColumnExists("clientes", "email", "TEXT");
+      ensureColumnExists("clientes", "square_id", "TEXT");
+
+      console.log("✅ Nueva base creada desde cero con secuencia reiniciada (id=1).");
     } catch (err) {
-      console.warn("⚠️ No se pudo reiniciar la base de datos:", err.message);
+      console.error("❌ Error al reiniciar base en sandbox/dev:", err.message);
     }
   } else {
-    console.log("🏭 Modo producción detectado — no se reinician secuencias.");
+    console.log("🏭 Modo producción detectado — la base de datos no se reinicia.");
   }
 };
-
-
 
 // ===============================
 // 🚀 EJECUCIÓN
