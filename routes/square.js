@@ -68,48 +68,65 @@ router.post(
 
           let puntosAgregados = 0;
 
-          // Función recursiva para subir en la jerarquía y encontrar categorías padre
-          async function findCategoryName(catalogId, depth = 0) {
-            if (!catalogId || depth > 5) return "Sin categoría"; // límite de profundidad
-
-            try {
-              const response = await catalogApi.retrieveCatalogObject(catalogId, true);
-              const obj = response.result.object;
-
-              if (obj.type === "CATEGORY" && obj.categoryData?.name) {
-                return obj.categoryData.name;
-              }
-
-              if (obj.type === "ITEM" && obj.itemData?.categoryId) {
-                return await findCategoryName(obj.itemData.categoryId, depth + 1);
-              }
-
-              if (obj.type === "ITEM_VARIATION" && obj.itemVariationData?.itemId) {
-                return await findCategoryName(obj.itemVariationData.itemId, depth + 1);
-              }
-
-              // Buscar si tiene categoría en un custom attribute o similar
-              if (obj.customAttributeValues) {
-                const catAttr = Object.values(obj.customAttributeValues).find(v =>
-                  v?.name?.toLowerCase()?.includes("categoría")
-                );
-                if (catAttr?.stringValue) return catAttr.stringValue;
-              }
-
-              return "Sin categoría";
-            } catch (err) {
-              console.warn(`⚠️ Error buscando categoría (${catalogId})`, err.message);
-              return "Sin categoría";
-            }
-          }
-
           for (const item of order.lineItems) {
             const catalogId = item.catalogObjectId;
             if (!catalogId) continue;
 
-            const categoryName = await findCategoryName(catalogId);
-            const normalizedName = categoryName.toLowerCase().trim();
+            let catalogItem;
+            try {
+              const response = await catalogApi.retrieveCatalogObject(catalogId, true);
+              catalogItem = response.result.object;
+            } catch (err) {
+              console.warn(`⚠️ No se pudo obtener el objeto del catálogo: ${catalogId}`, err.message);
+              continue;
+            }
 
+            // 🧩 Si es una variación, obtener el item padre
+            if (catalogItem.type === "ITEM_VARIATION") {
+              const parentId = catalogItem.itemVariationData?.itemId;
+              if (parentId) {
+                try {
+                  const parentResponse = await catalogApi.retrieveCatalogObject(parentId, true);
+                  catalogItem = parentResponse.result.object;
+                } catch (err) {
+                  console.warn(`⚠️ No se pudo obtener el producto padre (${parentId})`, err.message);
+                  continue;
+                }
+              }
+            }
+
+            // 🔍 Obtener categoría del item
+            let categoryName = "Sin categoría";
+            const categoryId = catalogItem.itemData?.categoryId;
+
+            if (catalogItem.itemData?.categories?.length > 0) {
+              // Nuevo: soporte para múltiples categorías
+              try {
+                const catResp = await catalogApi.retrieveCatalogObject(
+                  catalogItem.itemData.categories[0].id
+                );
+                categoryName =
+                  catResp.result.object?.categoryData?.name || "Sin categoría";
+              } catch (err) {
+                console.warn(
+                  `⚠️ No se pudo obtener la categoría (array) para ${item.name}`,
+                  err.message
+                );
+              }
+            } else if (categoryId) {
+              try {
+                const catResp = await catalogApi.retrieveCatalogObject(categoryId);
+                categoryName =
+                  catResp.result.object?.categoryData?.name || "Sin categoría";
+              } catch (err) {
+                console.warn(
+                  `⚠️ No se pudo obtener la categoría simple para ${item.name}`,
+                  err.message
+                );
+              }
+            }
+
+            const normalizedName = categoryName.toLowerCase().trim();
             console.log(`📦 Producto: ${item.name} | Categoría detectada: ${normalizedName}`);
 
             const esElegible =
