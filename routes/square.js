@@ -1,5 +1,5 @@
 // ===============================
-// 💳 Webhook de Square: puntos por “Bebidas”, subcategorías y “Favoritos” + registro de transacciones + sync de clientes
+// 💳 Webhook de Square: puntos por “Bebidas”, subcategorías y “Favoritos”
 // ===============================
 const express = require("express");
 const crypto = require("crypto");
@@ -8,9 +8,6 @@ const db = require("../database/db");
 const squareClient = require("../config/squareClient");
 require("dotenv").config();
 
-// ==========================================
-// 🔒 RUTA: Webhook de Square
-// ==========================================
 router.post(
   "/webhook",
   express.raw({ type: "*/*" }),
@@ -21,9 +18,7 @@ router.post(
       const endpointUrl =
         "https://cafecito-loyalty-program-production.up.railway.app/api/square/webhook";
 
-      // ===============================
-      // 1️⃣ Validar firma del Webhook
-      // ===============================
+      // 1️⃣ Validar firma
       if (!signature || !webhookSignatureKey) {
         console.error("⚠️ Faltan datos de firma o clave de Square");
         return res.status(401).send("Faltan credenciales");
@@ -39,22 +34,17 @@ router.post(
         return res.status(401).send("Firma inválida");
       }
 
-      // ===============================
-      // 2️⃣ Procesar evento
-      // ===============================
       const event = JSON.parse(rawBody);
       console.log(`📩 Evento recibido: ${event.type}`);
 
-      // ===============================
-      // 🧾 EVENTO: Pago completado
-      // ===============================
+      // 🧾 Pago creado
       if (event.type === "payment.created") {
         const payment = event.data.object.payment;
         const customerIdSquare = payment.customer_id;
         const orderId = payment.order_id;
 
         if (!orderId) {
-          console.warn("⚠️ El pago no incluye un order_id, no se puede procesar productos.");
+          console.warn("⚠️ El pago no incluye order_id");
           return res.status(200).send("OK sin order_id");
         }
 
@@ -64,60 +54,66 @@ router.post(
           const orderResponse = await ordersApi.retrieveOrder(orderId);
           const order = orderResponse.result.order;
 
-          if (!order || !order.lineItems) {
+          if (!order?.lineItems) {
             console.warn("⚠️ Orden sin productos asociados.");
             return res.status(200).send("OK sin productos");
           }
 
-          console.log("🧩 Detalles de la orden recibida desde Square:");
-          console.log(
-            JSON.stringify(order, (k, v) => (typeof v === "bigint" ? v.toString() : v), 2)
-          );
+          console.log("🧩 Detalles de la orden:");
+          console.log(JSON.stringify(order, null, 2));
 
           let puntosAgregados = 0;
 
           for (const item of order.lineItems) {
             const catalogId = item.catalogObjectId;
-            if (!catalogId) {
-              console.warn(`⚠️ El item "${item.name}" no tiene catalogObjectId`);
-              continue;
-            }
+            if (!catalogId) continue;
 
-            // 🔍 Buscar el producto en el catálogo
-            let catalogItem;
+            let catalogItemResponse;
             try {
-              const catalogItemResponse = await catalogApi.retrieveCatalogObject(catalogId);
-              catalogItem = catalogItemResponse.result.object;
+              catalogItemResponse = await catalogApi.retrieveCatalogObject(catalogId, true);
             } catch (err) {
-              console.warn(`⚠️ No se pudo recuperar el objeto del catálogo para ${item.name}`, err);
+              console.warn(`⚠️ No se pudo obtener el objeto del catálogo: ${catalogId}`, err);
               continue;
             }
 
-            if (!catalogItem || !catalogItem.itemData) {
-              console.warn(`⚠️ El producto "${item.name}" no tiene itemData en el catálogo.`);
+            let catalogItem = catalogItemResponse.result.object;
+
+            // 🧩 Si es una variación, obtener el item padre
+            if (catalogItem.type === "ITEM_VARIATION") {
+              const parentId = catalogItem.itemVariationData?.itemId;
+              if (parentId) {
+                try {
+                  const parentResponse = await catalogApi.retrieveCatalogObject(parentId);
+                  catalogItem = parentResponse.result.object;
+                } catch (err) {
+                  console.warn(`⚠️ No se pudo obtener el producto padre (${parentId})`, err);
+                  continue;
+                }
+              }
+            }
+
+            if (!catalogItem?.itemData) {
+              console.warn(`⚠️ El producto "${item.name}" no tiene itemData válido.`);
               continue;
             }
 
-            // 🧭 Buscar categoría principal
+            // 🔍 Obtener categoría del item
             let categoryName = "Sin categoría";
             const categoryId = catalogItem.itemData.categoryId;
 
             if (categoryId) {
               try {
                 const categoryResponse = await catalogApi.retrieveCatalogObject(categoryId);
-                categoryName =
-                  categoryResponse.result.object?.categoryData?.name || "Sin categoría";
-              } catch (catErr) {
-                console.warn(`⚠️ No se pudo obtener la categoría del producto ${item.name}`, catErr);
+                categoryName = categoryResponse.result.object?.categoryData?.name || "Sin categoría";
+              } catch (err) {
+                console.warn(`⚠️ No se pudo obtener la categoría para ${item.name}`, err);
               }
             }
 
             const normalizedName = categoryName.toLowerCase().trim();
             console.log(`📦 Producto: ${item.name} | Categoría detectada: ${normalizedName}`);
 
-            // ✅ Si la categoría contiene palabras clave relacionadas
-            const esElegible =
-              /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(normalizedName);
+            const esElegible = /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(normalizedName);
 
             if (esElegible) {
               const cliente = db
@@ -125,22 +121,18 @@ router.post(
                 .get(customerIdSquare);
 
               if (cliente) {
-                // 1️⃣ Actualizar puntos
                 db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?").run(cliente.id);
 
-                // 2️⃣ Registrar transacción
                 const fecha = new Date().toISOString();
-                db.prepare(
-                  `INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
-                   VALUES (?, ?, ?, ?)`
-                ).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
+                db.prepare(`
+                  INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
+                  VALUES (?, ?, ?, ?)
+                `).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
 
                 puntosAgregados++;
-                console.log(
-                  `🥤 +1 punto agregado y transacción registrada para cliente ${cliente.id}`
-                );
+                console.log(`🥤 +1 punto agregado a cliente ${cliente.id}`);
               } else {
-                console.warn("⚠️ Cliente no encontrado en la base de datos con ese square_id");
+                console.warn("⚠️ Cliente no encontrado en la base de datos.");
               }
             }
           }
@@ -150,23 +142,19 @@ router.post(
           } else {
             console.log("ℹ️ Ningún producto elegible para puntos.");
           }
-        } catch (squareErr) {
-          console.error("❌ Error al obtener detalles del pedido:", squareErr);
+        } catch (err) {
+          console.error("❌ Error al procesar la orden:", err);
         }
       }
 
-      // ===============================
-      // 🧍 EVENTOS: Cliente creado / actualizado
-      // ===============================
+      // 🧍‍♂️ Cliente creado/actualizado
       if (event.type === "customer.created" || event.type === "customer.updated") {
         const customer = event.data.object.customer;
         const squareId = customer.id;
         const nombre = customer.given_name || "Sin nombre";
         const email = customer.email_address || null;
 
-        const existente = db
-          .prepare("SELECT id FROM clientes WHERE square_id = ?")
-          .get(squareId);
+        const existente = db.prepare("SELECT id FROM clientes WHERE square_id = ?").get(squareId);
 
         if (existente) {
           db.prepare("UPDATE clientes SET nombre = ?, email = ? WHERE square_id = ?")
@@ -176,7 +164,7 @@ router.post(
           db.prepare(
             "INSERT INTO clientes (nombre, email, square_id, puntos) VALUES (?, ?, ?, 0)"
           ).run(nombre, email, squareId);
-          console.log(`🆕 Cliente nuevo sincronizado (${nombre})`);
+          console.log(`🆕 Cliente sincronizado (${nombre})`);
         }
       }
 
@@ -189,4 +177,5 @@ router.post(
 );
 
 module.exports = router;
+
 
