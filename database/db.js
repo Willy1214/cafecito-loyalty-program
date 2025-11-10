@@ -91,22 +91,30 @@ const resetIfSandbox = () => {
 
   if (isDevOrRailway) {
     try {
-      // Limpieza de tablas (opcional, útil para entornos de test)
+      // Limpiar tablas
       db.prepare("DELETE FROM clientes").run();
       db.prepare("DELETE FROM transacciones").run();
       db.prepare("DELETE FROM eventos").run();
 
-      // Verificar si la tabla clientes está vacía
-      const row = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get();
-      const isEmpty = row && row.cnt === 0;
+      // Verificar si la tabla está vacía
+      const { cnt } = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get();
+      if (cnt === 0) {
+        console.log("🧹 Reiniciando secuencia de AUTOINCREMENT manualmente...");
 
-      if (isEmpty) {
-        // Borrar secuencias solo si está vacía
-        db.prepare(`
-          DELETE FROM sqlite_sequence 
-          WHERE name IN ('clientes', 'transacciones', 'usuarios')
-        `).run();
-        console.log("🧹 Base de datos limpia y secuencias reiniciadas (modo desarrollo).");
+        // Fuerza un reinicio completo del contador usando VACUUM
+        db.prepare("DELETE FROM sqlite_sequence WHERE name='clientes'").run();
+        db.prepare("DELETE FROM sqlite_sequence WHERE name='transacciones'").run();
+        db.prepare("DELETE FROM sqlite_sequence WHERE name='usuarios'").run();
+
+        // Reajustar manualmente el contador (solo para asegurar compatibilidad)
+        db.prepare("UPDATE sqlite_sequence SET seq = 0 WHERE name='clientes'").run();
+        db.prepare("UPDATE sqlite_sequence SET seq = 0 WHERE name='transacciones'").run();
+        db.prepare("UPDATE sqlite_sequence SET seq = 0 WHERE name='usuarios'").run();
+
+        // SQLite solo aplica los cambios de secuencia al ejecutar VACUUM
+        db.prepare("VACUUM").run();
+
+        console.log("✅ Secuencia de IDs reiniciada correctamente a 1.");
       } else {
         console.log("⚙️ Clientes con registros — no se reinicia secuencia.");
       }
@@ -117,6 +125,7 @@ const resetIfSandbox = () => {
     console.log("🏭 Modo producción detectado — no se reinician secuencias.");
   }
 };
+
 
 // ===============================
 // 🚀 EJECUCIÓN
