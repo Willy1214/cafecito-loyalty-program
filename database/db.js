@@ -1,3 +1,4 @@
+// database/db.js (reemplaza completamente tu archivo con esto)
 // ===============================
 // 🗄️ CONFIGURACIÓN DE LA BASE DE DATOS (better-sqlite3)
 // ===============================
@@ -7,6 +8,36 @@ const fs = require("fs");
 
 const dbPath = process.env.DB_PATH || path.resolve(__dirname, "fidelidad.db");
 
+// -------------------------------
+// Detectar entorno (Railway friendly)
+// -------------------------------
+const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME || "").toLowerCase();
+const isDevOrSandbox =
+  !process.env.NODE_ENV ||
+  process.env.NODE_ENV === "development" ||
+  railwayEnv === "sandbox" ||
+  railwayEnv === "preview" ||
+  process.env.RAILWAY_PROJECT_NAME?.toLowerCase()?.includes("dev");
+
+if (isDevOrSandbox) {
+  try {
+    if (fs.existsSync(dbPath)) {
+      // Eliminar el archivo ANTES de abrir la conexión
+      fs.unlinkSync(dbPath);
+      console.log("🧹 (sandbox/dev) Archivo de base de datos eliminado antes de abrir conexión.");
+    } else {
+      console.log("📂 (sandbox/dev) No existía base previa, se creará una nueva.");
+    }
+  } catch (err) {
+    console.warn("⚠️ (sandbox/dev) No se pudo eliminar el archivo DB antes de abrir:", err.message);
+  }
+} else {
+  console.log("🏭 Producción detectada — no se eliminará el archivo DB.");
+}
+
+// ===============================
+// Abrir conexión (ya con el archivo limpio si estamos en sandbox)
+// ===============================
 let db;
 try {
   db = new Database(dbPath);
@@ -81,47 +112,28 @@ const ensureColumnExists = (tableName, columnName, columnType) => {
 };
 
 // ===============================
-// 🧼 LIMPIEZA Y RESET EN ENTORNOS DE DESARROLLO / SANDBOX
-// ===============================
-const resetIfSandbox = () => {
-  const railwayEnv = process.env.RAILWAY_ENVIRONMENT_NAME?.toLowerCase();
-  const isDevOrSandbox =
-    !process.env.NODE_ENV ||
-    process.env.NODE_ENV === "development" ||
-    railwayEnv === "sandbox" ||
-    railwayEnv === "preview" ||
-    process.env.RAILWAY_PROJECT_NAME?.toLowerCase()?.includes("dev");
-
-  if (isDevOrSandbox) {
-    try {
-      if (fs.existsSync(dbPath)) {
-        fs.unlinkSync(dbPath);
-        console.log("🧹 Archivo de base de datos eliminado (modo sandbox/dev).");
-      } else {
-        console.log("📂 No había base de datos previa, se creará una nueva.");
-      }
-
-      db = new Database(dbPath);
-      createTables();
-      ensureColumnExists("clientes", "email", "TEXT");
-      ensureColumnExists("clientes", "square_id", "TEXT");
-
-      console.log("✅ Nueva base creada desde cero con secuencia reiniciada (id=1).");
-    } catch (err) {
-      console.error("❌ Error al reiniciar base en sandbox/dev:", err.message);
-    }
-  } else {
-    console.log("🏭 Modo producción detectado — la base de datos no se reinicia.");
-  }
-};
-
-// ===============================
-// 🚀 EJECUCIÓN
+// Ejecutar setup
 // ===============================
 createTables();
 ensureColumnExists("clientes", "email", "TEXT");
 ensureColumnExists("clientes", "square_id", "TEXT");
-resetIfSandbox();
+
+// ===============================
+// DEBUG: mostrar estado de sqlite_sequence y conteo clientes
+// ===============================
+try {
+  const cntRow = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get();
+  const cnt = cntRow ? cntRow.cnt : 0;
+  const seqRow = db.prepare("SELECT name, seq FROM sqlite_sequence WHERE name='clientes'").all();
+  console.log(`🔎 Clientes en tabla: ${cnt}`);
+  if (seqRow && seqRow.length) {
+    console.log(`🔎 sqlite_sequence (clientes):`, seqRow);
+  } else {
+    console.log("🔎 sqlite_sequence: no hay entrada para 'clientes' (secuencia limpia).");
+  }
+} catch (err) {
+  console.warn("⚠️ No se pudo consultar sqlite_sequence:", err.message);
+}
 
 console.log("✅ Base de datos lista y estructurada.");
 module.exports = db;
