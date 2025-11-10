@@ -98,7 +98,9 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
         }
 
         // 💳 Validar que el monto del pago coincida con el total de la orden
-        const montoPago = parseInt(payment.amount_money?.amount || "0", 10);
+        // Algunos payloads usan snake_case o camelCase; chequeamos ambos campos de amount_money / amountMoney
+        const montoPago =
+          parseInt(payment.amount_money?.amount || payment.amountMoney?.amount || "0", 10);
         const montoOrden = parseInt(order.totalMoney?.amount || "0", 10);
 
         if (montoPago !== montoOrden) {
@@ -109,9 +111,7 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
         // 🧾 Log seguro con BigInt manejado
         try {
           const safeOrder = JSON.parse(
-            JSON.stringify(order, (key, value) =>
-              typeof value === "bigint" ? value.toString() : value
-            )
+            JSON.stringify(order, (key, value) => (typeof value === "bigint" ? value.toString() : value))
           );
           console.log("🧩 Detalles de la orden:", JSON.stringify(safeOrder, null, 2));
         } catch (logErr) {
@@ -119,32 +119,78 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
         }
 
         // ===============================
-        // 🧠 Función para detectar categoría
+        // 🧠 Función para detectar categoría (mejorada)
+        // - soporta: itemData.categories[], itemData.categoryId, reporting_category, variation->item
+        // - fallback por nombre (solo palabras relacionadas con bebidas)
         // ===============================
-        async function findCategoryName(catalogId, depth = 0) {
-          if (!catalogId || depth > 5) return "Sin categoría";
+        async function findCategoryName(catalogId, itemName = "", depth = 0) {
+          if (!catalogId || depth > 6) return "Sin categoría";
 
           try {
             const response = await catalogApi.retrieveCatalogObject(catalogId, true);
             const obj = response.result.object;
 
+            if (!obj) return "Sin categoría";
+
+            // Si ya es una categoría
             if (obj.type === "CATEGORY" && obj.categoryData?.name) {
               return obj.categoryData.name;
             }
 
-            if (obj.type === "ITEM" && obj.itemData?.categoryId) {
-              return await findCategoryName(obj.itemData.categoryId, depth + 1);
+            // Si es ITEM, primero revisar itemData.categories[] (nuevo), luego categoryId (viejo)
+            if (obj.type === "ITEM" && obj.itemData) {
+              // 1) itemData.categories[] es la forma moderna
+              if (Array.isArray(obj.itemData.categories) && obj.itemData.categories.length > 0) {
+                const catId = obj.itemData.categories[0].id;
+                if (catId) {
+                  try {
+                    const catResp = await catalogApi.retrieveCatalogObject(catId);
+                    const catName = catResp.result.object?.categoryData?.name;
+                    if (catName) return catName;
+                  } catch (e) {
+                    /* seguir buscando */
+                  }
+                }
+              }
+
+              // 2) reporting_category (algunas exportaciones usan reporting_category)
+              const repCatId =
+                obj.itemData.reporting_category?.id || obj.itemData.reportingCategory?.id;
+              if (repCatId) {
+                try {
+                  const repResp = await catalogApi.retrieveCatalogObject(repCatId);
+                  const repName = repResp.result.object?.categoryData?.name;
+                  if (repName) return repName;
+                } catch (e) {
+                  /* seguir buscando */
+                }
+              }
+
+              // 3) categoryId (legacy)
+              if (obj.itemData.categoryId) {
+                return await findCategoryName(obj.itemData.categoryId, itemName, depth + 1);
+              }
             }
 
+            // Si es una variación, subir al item padre
             if (obj.type === "ITEM_VARIATION" && obj.itemVariationData?.itemId) {
-              return await findCategoryName(obj.itemVariationData.itemId, depth + 1);
+              return await findCategoryName(obj.itemVariationData.itemId, itemName, depth + 1);
             }
 
+            // Buscar en custom attributes por si alguien puso la categoria manualmente
             if (obj.customAttributeValues) {
               const catAttr = Object.values(obj.customAttributeValues).find((v) =>
-                v?.name?.toLowerCase()?.includes("categoría")
+                (v?.name || "").toLowerCase().includes("categor")
               );
               if (catAttr?.stringValue) return catAttr.stringValue;
+            }
+
+            // FALLBACK: intentar inferir por nombre del item (solo bebidas)
+            if (itemName) {
+              const n = itemName.toLowerCase();
+              if (/\b(café|cafe|americano|latte|capuchino|cappuccino|espresso|té|te|tea|smoothie|jugo|zum[oó]|milkshake|batido|frapp[eé]?)\b/.test(n)) {
+                return "Bebidas (detectada por nombre)";
+              }
             }
 
             return "Sin categoría";
@@ -160,18 +206,44 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
         let puntosAgregados = 0;
 
         for (const item of order.lineItems) {
-          const catalogId = item.catalogObjectId;
-          if (!catalogId) continue;
+          // Saltar líneas que no son items (ej: DISCOUNT, FEE, etc.)
+          if (item.itemType && item.itemType !== "ITEM") {
+            console.log(`ℹ️ Línea ignorada (no es ITEM): ${item.name} / type=${item.itemType}`);
+            continue;
+          }
 
-          const categoryName = await findCategoryName(catalogId);
-          const normalizedName = categoryName.toLowerCase().trim();
+          const catalogId = item.catalogObjectId;
+          // Si no trae catalogId, intentamos fallback por nombre directo
+          if (!catalogId) {
+            console.log(`ℹ️ Item sin catalogObjectId: ${item.name}`);
+            // fallback por nombre
+            const maybeByName = await findCategoryName(null, item.name || "");
+            if (/\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(maybeByName.toLowerCase())) {
+              // buscar cliente y sumar punto
+              const cliente = db.prepare("SELECT id FROM clientes WHERE square_id = ?").get(customerIdSquare);
+              if (!cliente) {
+                console.warn("⚠️ Cliente no registrado, no se otorgan puntos.");
+                return res.status(200).send("Cliente no encontrado");
+              }
+              db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?").run(cliente.id);
+              const fecha = new Date().toISOString();
+              db.prepare(
+                `INSERT INTO transacciones (cliente_id, fecha, puntos, motivo) VALUES (?, ?, ?, ?)`
+              ).run(cliente.id, fecha, 1, `Compra de ${item.name} (detectada por nombre)`);
+              puntosAgregados++;
+              console.log(`🥤 +1 punto (fallback nombre) agregado a cliente ${cliente.id}`);
+            }
+            continue;
+          }
+
+          // Busca la categoría, pasando el nombre del item para fallback por nombre dentro de la función
+          const categoryName = await findCategoryName(catalogId, item.name || "");
+          const normalizedName = (categoryName || "Sin categoría").toLowerCase().trim();
 
           console.log(`📦 Producto: ${item.name} | Categoría detectada: ${normalizedName}`);
 
           const esElegible =
-            /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(
-              normalizedName
-            );
+            /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(normalizedName);
 
           const cliente = db
             .prepare("SELECT id FROM clientes WHERE square_id = ?")
@@ -186,10 +258,12 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
             db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?").run(cliente.id);
 
             const fecha = new Date().toISOString();
-            db.prepare(`
+            db.prepare(
+              `
               INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
               VALUES (?, ?, ?, ?)
-            `).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
+            `
+            ).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
 
             puntosAgregados++;
             console.log(`🥤 +1 punto agregado a cliente ${cliente.id}`);
@@ -202,7 +276,7 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
           console.log("ℹ️ Ningún producto elegible para puntos.");
         }
       } catch (err) {
-        console.error("❌ Error al procesar la orden:", err.message);
+        console.error("❌ Error al procesar la orden:", err.message || err);
       }
     }
 
@@ -234,7 +308,7 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
 
     res.status(200).send("OK ✅");
   } catch (err) {
-    console.error("❌ Error procesando webhook:", err.message);
+    console.error("❌ Error procesando webhook:", err.message || err);
     res.status(500).send("Error interno");
   }
 });
