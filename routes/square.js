@@ -60,7 +60,11 @@ router.post(
           }
 
           console.log("🧩 Detalles de la orden:");
-          console.log(JSON.stringify(order, null, 2));
+          console.log(
+            JSON.stringify(order, (key, value) =>
+              typeof value === "bigint" ? value.toString() : value,
+            2)
+          );
 
           let puntosAgregados = 0;
 
