@@ -1,5 +1,5 @@
 // ===============================
-// 💳 Webhook de Square: puntos por “Bebidas”, subcategorías y “Favoritos”
+// 💳 Webhook Square — sistema de puntos robusto (categoría “Bebidas”, subcategorías, “Favoritos”)
 // ===============================
 const express = require("express");
 const crypto = require("crypto");
@@ -13,12 +13,14 @@ router.post(
   express.raw({ type: "*/*" }),
   async (req, res) => {
     try {
+      // ===============================
+      // 1️⃣ Validar firma HMAC
+      // ===============================
       const signature = req.headers["x-square-hmacsha256-signature"];
       const webhookSignatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
       const endpointUrl =
         "https://cafecito-loyalty-program-production.up.railway.app/api/square/webhook";
 
-      // 1️⃣ Validar firma
       if (!signature || !webhookSignatureKey) {
         console.error("⚠️ Faltan datos de firma o clave de Square");
         return res.status(401).send("Faltan credenciales");
@@ -34,10 +36,42 @@ router.post(
         return res.status(401).send("Firma inválida");
       }
 
+      // ===============================
+      // 2️⃣ Parsear evento y evitar duplicados
+      // ===============================
       const event = JSON.parse(rawBody);
+      const eventId = event.id;
       console.log(`📩 Evento recibido: ${event.type}`);
 
-      // 🧾 Pago creado
+      const yaExiste = db.prepare("SELECT 1 FROM eventos WHERE id = ?").get(eventId);
+      if (yaExiste) {
+        console.warn(`⚠️ Evento duplicado ignorado (${eventId})`);
+        return res.status(200).send("Evento ya procesado");
+      }
+
+      db.prepare("INSERT INTO eventos (id, tipo, fecha) VALUES (?, ?, ?)").run(
+        eventId,
+        event.type,
+        new Date().toISOString()
+      );
+
+      // ===============================
+      // 3️⃣ Filtrar eventos relevantes
+      // ===============================
+      const eventosEsperados = [
+        "payment.created",
+        "customer.created",
+        "customer.updated",
+      ];
+
+      if (!eventosEsperados.includes(event.type)) {
+        console.log(`ℹ️ Evento ${event.type} ignorado.`);
+        return res.status(200).send("Evento ignorado");
+      }
+
+      // ===============================
+      // 4️⃣ Procesar pago creado
+      // ===============================
       if (event.type === "payment.created") {
         const payment = event.data.object.payment;
         const customerIdSquare = payment.customer_id;
@@ -54,117 +88,111 @@ router.post(
           const orderResponse = await ordersApi.retrieveOrder(orderId);
           const order = orderResponse.result.order;
 
-          if (!order?.lineItems) {
+          // 💰 Validaciones de estado y consistencia
+          if (order.state && order.state !== "COMPLETED") {
+            console.warn(`⚠️ Orden en estado ${order.state}, no se otorgan puntos.`);
+            return res.status(200).send("Orden no completada");
+          }
+
+          if (!order.lineItems || order.lineItems.length === 0) {
             console.warn("⚠️ Orden sin productos asociados.");
-            return res.status(200).send("OK sin productos");
+            return res.status(200).send("Orden vacía");
+          }
+
+          if (order.totalMoney?.amount === "0") {
+            console.warn("⚠️ Orden con total $0, no se otorgan puntos.");
+            return res.status(200).send("Orden sin monto");
+          }
+
+          // 💳 Validar que el monto del pago coincida con el total de la orden
+          const montoPago = parseInt(payment.amount_money?.amount || "0", 10);
+          const montoOrden = parseInt(order.totalMoney?.amount || "0", 10);
+
+          if (montoPago !== montoOrden) {
+            console.warn(
+              `⚠️ Monto inconsistente: pago ${montoPago} ≠ orden ${montoOrden}`
+            );
+            return res.status(200).send("Monto no coincide, puntos no otorgados");
           }
 
           console.log("🧩 Detalles de la orden:");
-          console.log(
-            JSON.stringify(order, (key, value) =>
-              typeof value === "bigint" ? value.toString() : value,
-            2)
-          );
+          console.log(JSON.stringify(order, null, 2));
 
+          // ===============================
+          // 🧠 Función para detectar categoría
+          // ===============================
+          async function findCategoryName(catalogId, depth = 0) {
+            if (!catalogId || depth > 5) return "Sin categoría";
+
+            try {
+              const response = await catalogApi.retrieveCatalogObject(catalogId, true);
+              const obj = response.result.object;
+
+              if (obj.type === "CATEGORY" && obj.categoryData?.name) {
+                return obj.categoryData.name;
+              }
+
+              if (obj.type === "ITEM" && obj.itemData?.categoryId) {
+                return await findCategoryName(obj.itemData.categoryId, depth + 1);
+              }
+
+              if (obj.type === "ITEM_VARIATION" && obj.itemVariationData?.itemId) {
+                return await findCategoryName(obj.itemVariationData.itemId, depth + 1);
+              }
+
+              if (obj.customAttributeValues) {
+                const catAttr = Object.values(obj.customAttributeValues).find(v =>
+                  v?.name?.toLowerCase()?.includes("categoría")
+                );
+                if (catAttr?.stringValue) return catAttr.stringValue;
+              }
+
+              return "Sin categoría";
+            } catch (err) {
+              console.warn(`⚠️ Error buscando categoría (${catalogId}): ${err.message}`);
+              return "Sin categoría";
+            }
+          }
+
+          // ===============================
+          // 🎯 Procesar productos y otorgar puntos
+          // ===============================
           let puntosAgregados = 0;
-          
-          // ✅ Validar que el pago esté completado y el monto coincida
-          if (payment.status !== "COMPLETED") {
-            console.warn(`⚠️ Pago con estado ${payment.status}, no se otorgarán puntos.`);
-            return res.status(200).send("OK - Pago no completado");
-          }
-
-          const orderTotal = Number(order.totalMoney?.amount || 0);
-          const paymentTotal = Number(payment.amountMoney?.amount || 0);
-
-          if (orderTotal !== paymentTotal) {
-            console.warn(`⚠️ Monto del pago (${paymentTotal}) no coincide con la orden (${orderTotal}).`);
-            return res.status(200).send("OK - Monto inconsistente");
-          }
 
           for (const item of order.lineItems) {
             const catalogId = item.catalogObjectId;
             if (!catalogId) continue;
 
-            let catalogItem;
-            try {
-              const response = await catalogApi.retrieveCatalogObject(catalogId, true);
-              catalogItem = response.result.object;
-            } catch (err) {
-              console.warn(`⚠️ No se pudo obtener el objeto del catálogo: ${catalogId}`, err.message);
-              continue;
-            }
-
-            // 🧩 Si es una variación, obtener el item padre
-            if (catalogItem.type === "ITEM_VARIATION") {
-              const parentId = catalogItem.itemVariationData?.itemId;
-              if (parentId) {
-                try {
-                  const parentResponse = await catalogApi.retrieveCatalogObject(parentId, true);
-                  catalogItem = parentResponse.result.object;
-                } catch (err) {
-                  console.warn(`⚠️ No se pudo obtener el producto padre (${parentId})`, err.message);
-                  continue;
-                }
-              }
-            }
-
-            // 🔍 Obtener categoría del item
-            let categoryName = "Sin categoría";
-            const categoryId = catalogItem.itemData?.categoryId;
-
-            if (catalogItem.itemData?.categories?.length > 0) {
-              // Nuevo: soporte para múltiples categorías
-              try {
-                const catResp = await catalogApi.retrieveCatalogObject(
-                  catalogItem.itemData.categories[0].id
-                );
-                categoryName =
-                  catResp.result.object?.categoryData?.name || "Sin categoría";
-              } catch (err) {
-                console.warn(
-                  `⚠️ No se pudo obtener la categoría (array) para ${item.name}`,
-                  err.message
-                );
-              }
-            } else if (categoryId) {
-              try {
-                const catResp = await catalogApi.retrieveCatalogObject(categoryId);
-                categoryName =
-                  catResp.result.object?.categoryData?.name || "Sin categoría";
-              } catch (err) {
-                console.warn(
-                  `⚠️ No se pudo obtener la categoría simple para ${item.name}`,
-                  err.message
-                );
-              }
-            }
-
+            const categoryName = await findCategoryName(catalogId);
             const normalizedName = categoryName.toLowerCase().trim();
+
             console.log(`📦 Producto: ${item.name} | Categoría detectada: ${normalizedName}`);
 
             const esElegible =
-              /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(normalizedName);
+              /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(
+                normalizedName
+              );
+
+            const cliente = db
+              .prepare("SELECT id FROM clientes WHERE square_id = ?")
+              .get(customerIdSquare);
+
+            if (!cliente) {
+              console.warn("⚠️ Cliente no registrado, no se otorgan puntos.");
+              return res.status(200).send("Cliente no encontrado");
+            }
 
             if (esElegible) {
-              const cliente = db
-                .prepare("SELECT id FROM clientes WHERE square_id = ?")
-                .get(customerIdSquare);
+              db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?").run(cliente.id);
 
-              if (cliente) {
-                db.prepare("UPDATE clientes SET puntos = puntos + 1 WHERE id = ?").run(cliente.id);
+              const fecha = new Date().toISOString();
+              db.prepare(`
+                INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
+                VALUES (?, ?, ?, ?)
+              `).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
 
-                const fecha = new Date().toISOString();
-                db.prepare(`
-                  INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
-                  VALUES (?, ?, ?, ?)
-                `).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
-
-                puntosAgregados++;
-                console.log(`🥤 +1 punto agregado a cliente ${cliente.id}`);
-              } else {
-                console.warn("⚠️ Cliente no encontrado en la base de datos.");
-              }
+              puntosAgregados++;
+              console.log(`🥤 +1 punto agregado a cliente ${cliente.id}`);
             }
           }
 
@@ -178,7 +206,9 @@ router.post(
         }
       }
 
-      // 🧍‍♂️ Cliente creado/actualizado
+      // ===============================
+      // 5️⃣ Sincronización de cliente (crear / actualizar)
+      // ===============================
       if (event.type === "customer.created" || event.type === "customer.updated") {
         const customer = event.data.object.customer;
         const squareId = customer.id;

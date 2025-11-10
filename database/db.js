@@ -52,6 +52,23 @@ const createTables = () => {
     )
   `).run();
 
+  // ===============================
+// 🧩 Eventos (webhooks procesados)
+// ===============================
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS eventos (
+    id TEXT PRIMARY KEY,           -- ID único del evento Square
+    tipo TEXT NOT NULL,            -- Tipo: payment.created, customer.updated, etc.
+    fecha TEXT NOT NULL,           -- Fecha de recepción
+    procesado INTEGER DEFAULT 1,   -- Flag simple (1 = procesado)
+    detalles TEXT                  -- JSON opcional del evento
+  )
+`).run();
+
+// ✅ Verificación adicional por si necesitas futuras migraciones
+ensureColumnExists("eventos", "detalles", "TEXT");
+
+
   console.log("📦 Tablas verificadas o creadas correctamente.");
 };
 
