@@ -52,22 +52,14 @@ const createTables = () => {
     )
   `).run();
 
-  // ===============================
-// 🧩 Eventos (webhooks procesados)
-// ===============================
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS eventos (
-    id TEXT PRIMARY KEY,           -- ID único del evento Square
-    tipo TEXT NOT NULL,            -- Tipo: payment.created, customer.updated, etc.
-    fecha TEXT NOT NULL,           -- Fecha de recepción
-    procesado INTEGER DEFAULT 1,   -- Flag simple (1 = procesado)
-    detalles TEXT                  -- JSON opcional del evento
-  )
-`).run();
-
-// ✅ Verificación adicional por si necesitas futuras migraciones
-ensureColumnExists("eventos", "detalles", "TEXT");
-
+  // 🧩 Eventos (para evitar procesar duplicados)
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS eventos (
+      id TEXT PRIMARY KEY,
+      tipo TEXT,
+      fecha TEXT
+    )
+  `).run();
 
   console.log("📦 Tablas verificadas o creadas correctamente.");
 };
@@ -77,7 +69,7 @@ ensureColumnExists("eventos", "detalles", "TEXT");
 // ===============================
 const ensureColumnExists = (tableName, columnName, columnType) => {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
-  const exists = columns.some(col => col.name === columnName);
+  const exists = columns.some((col) => col.name === columnName);
 
   if (!exists) {
     try {
@@ -92,11 +84,41 @@ const ensureColumnExists = (tableName, columnName, columnType) => {
 };
 
 // ===============================
+// 🧼 LIMPIEZA Y RESET EN ENTORNOS DE DESARROLLO
+// ===============================
+const resetIfSandbox = () => {
+  const isDevOrRailway =
+    !process.env.NODE_ENV ||
+    process.env.NODE_ENV === "development" ||
+    process.env.RAILWAY_ENVIRONMENT === "sandbox" ||
+    process.env.RAILWAY_PROJECT_NAME?.toLowerCase()?.includes("dev");
+
+  if (isDevOrRailway) {
+    try {
+      // Borramos todos los registros (opcional, puedes comentar si no quieres vaciar datos)
+      db.prepare("DELETE FROM clientes").run();
+      db.prepare("DELETE FROM transacciones").run();
+      db.prepare("DELETE FROM eventos").run();
+
+      // Reiniciamos el contador de AUTOINCREMENT
+      db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('clientes', 'transacciones', 'usuarios')").run();
+
+      console.log("🧹 Base de datos limpia y secuencias reiniciadas (modo desarrollo).");
+    } catch (err) {
+      console.warn("⚠️ No se pudo reiniciar la base de datos:", err.message);
+    }
+  } else {
+    console.log("🏭 Modo producción detectado — no se reinician secuencias.");
+  }
+};
+
+// ===============================
 // 🚀 EJECUCIÓN
 // ===============================
 createTables();
 ensureColumnExists("clientes", "email", "TEXT");
-ensureColumnExists("clientes", "square_id", "TEXT"); // 🚫 sin UNIQUE para evitar errores
+ensureColumnExists("clientes", "square_id", "TEXT");
+resetIfSandbox();
 
 console.log("✅ Base de datos lista y estructurada.");
 module.exports = db;
