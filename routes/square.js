@@ -78,20 +78,29 @@ router.post(
 
           for (const item of order.lineItems) {
             const catalogId = item.catalogObjectId;
-            if (!catalogId) continue;
+            if (!catalogId) {
+              console.warn(`⚠️ El item "${item.name}" no tiene catalogObjectId`);
+              continue;
+            }
 
             // 🔍 Buscar el producto en el catálogo
-            const catalogItemResponse = await catalogApi.retrieveCatalogObject(catalogId);
-            const catalogItem = catalogItemResponse.result.object;
+            let catalogItem;
+            try {
+              const catalogItemResponse = await catalogApi.retrieveCatalogObject(catalogId);
+              catalogItem = catalogItemResponse.result.object;
+            } catch (err) {
+              console.warn(`⚠️ No se pudo recuperar el objeto del catálogo para ${item.name}`, err);
+              continue;
+            }
 
             if (!catalogItem || !catalogItem.itemData) {
-              console.warn(`⚠️ El producto ${item.name} no tiene datos en el catálogo.`);
+              console.warn(`⚠️ El producto "${item.name}" no tiene itemData en el catálogo.`);
               continue;
             }
 
             // 🧭 Buscar categoría principal
             let categoryName = "Sin categoría";
-            let categoryId = catalogItem.itemData.categoryId;
+            const categoryId = catalogItem.itemData.categoryId;
 
             if (categoryId) {
               try {
@@ -104,13 +113,11 @@ router.post(
             }
 
             const normalizedName = categoryName.toLowerCase().trim();
-
             console.log(`📦 Producto: ${item.name} | Categoría detectada: ${normalizedName}`);
 
             // ✅ Si la categoría contiene palabras clave relacionadas
-            const esElegible = /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(
-              normalizedName
-            );
+            const esElegible =
+              /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(normalizedName);
 
             if (esElegible) {
               const cliente = db
@@ -123,10 +130,10 @@ router.post(
 
                 // 2️⃣ Registrar transacción
                 const fecha = new Date().toISOString();
-                db.prepare(`
-                  INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
-                  VALUES (?, ?, ?, ?)
-                `).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
+                db.prepare(
+                  `INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
+                   VALUES (?, ?, ?, ?)`
+                ).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
 
                 puntosAgregados++;
                 console.log(
@@ -182,3 +189,4 @@ router.post(
 );
 
 module.exports = router;
+
