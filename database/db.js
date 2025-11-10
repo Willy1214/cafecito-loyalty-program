@@ -19,7 +19,6 @@ try {
 // 🧱 CREACIÓN / ACTUALIZACIÓN DE TABLAS
 // ===============================
 const createTables = () => {
-  // 🧩 Usuarios
   db.prepare(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +29,6 @@ const createTables = () => {
     )
   `).run();
 
-  // 🧩 Clientes
   db.prepare(`
     CREATE TABLE IF NOT EXISTS clientes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +38,6 @@ const createTables = () => {
     )
   `).run();
 
-  // 🧩 Transacciones
   db.prepare(`
     CREATE TABLE IF NOT EXISTS transacciones (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +49,6 @@ const createTables = () => {
     )
   `).run();
 
-  // 🧩 Eventos (para evitar procesar duplicados)
   db.prepare(`
     CREATE TABLE IF NOT EXISTS eventos (
       id TEXT PRIMARY KEY,
@@ -69,7 +65,7 @@ const createTables = () => {
 // ===============================
 const ensureColumnExists = (tableName, columnName, columnType) => {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
-  const exists = columns.some((col) => col.name === columnName);
+  const exists = columns.some(col => col.name === columnName);
 
   if (!exists) {
     try {
@@ -95,15 +91,25 @@ const resetIfSandbox = () => {
 
   if (isDevOrRailway) {
     try {
-      // Borramos todos los registros (opcional, puedes comentar si no quieres vaciar datos)
+      // Limpieza de tablas (opcional, útil para entornos de test)
       db.prepare("DELETE FROM clientes").run();
       db.prepare("DELETE FROM transacciones").run();
       db.prepare("DELETE FROM eventos").run();
 
-      // Reiniciamos el contador de AUTOINCREMENT
-      db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('clientes', 'transacciones', 'usuarios')").run();
+      // Verificar si la tabla clientes está vacía
+      const row = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get();
+      const isEmpty = row && row.cnt === 0;
 
-      console.log("🧹 Base de datos limpia y secuencias reiniciadas (modo desarrollo).");
+      if (isEmpty) {
+        // Borrar secuencias solo si está vacía
+        db.prepare(`
+          DELETE FROM sqlite_sequence 
+          WHERE name IN ('clientes', 'transacciones', 'usuarios')
+        `).run();
+        console.log("🧹 Base de datos limpia y secuencias reiniciadas (modo desarrollo).");
+      } else {
+        console.log("⚙️ Clientes con registros — no se reinicia secuencia.");
+      }
     } catch (err) {
       console.warn("⚠️ No se pudo reiniciar la base de datos:", err.message);
     }
