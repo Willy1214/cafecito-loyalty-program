@@ -67,6 +67,20 @@ router.post(
           );
 
           let puntosAgregados = 0;
+          
+          // ✅ Validar que el pago esté completado y el monto coincida
+          if (payment.status !== "COMPLETED") {
+            console.warn(`⚠️ Pago con estado ${payment.status}, no se otorgarán puntos.`);
+            return res.status(200).send("OK - Pago no completado");
+          }
+
+          const orderTotal = Number(order.totalMoney?.amount || 0);
+          const paymentTotal = Number(payment.amountMoney?.amount || 0);
+
+          if (orderTotal !== paymentTotal) {
+            console.warn(`⚠️ Monto del pago (${paymentTotal}) no coincide con la orden (${orderTotal}).`);
+            return res.status(200).send("OK - Monto inconsistente");
+          }
 
           for (const item of order.lineItems) {
             const catalogId = item.catalogObjectId;
