@@ -93,16 +93,26 @@ router.post(
             let categoryName = "Sin categoría";
             let categoryId = catalogItem.itemData.categoryId;
 
-            // Si el producto tiene categoría, la obtenemos
             if (categoryId) {
-              const categoryResponse = await catalogApi.retrieveCatalogObject(categoryId);
-              categoryName = categoryResponse.result.object.categoryData.name;
+              try {
+                const categoryResponse = await catalogApi.retrieveCatalogObject(categoryId);
+                categoryName =
+                  categoryResponse.result.object?.categoryData?.name || "Sin categoría";
+              } catch (catErr) {
+                console.warn(`⚠️ No se pudo obtener la categoría del producto ${item.name}`, catErr);
+              }
             }
 
-            console.log(`📦 Producto: ${item.name} | Categoría detectada: ${categoryName}`);
+            const normalizedName = categoryName.toLowerCase().trim();
 
-            // ✅ Si la categoría o subcategoría contiene “Bebidas”, “Calientes”, “Refrescantes” o “Favoritos”
-            if (/bebidas|calientes|refrescantes|favoritos/i.test(categoryName)) {
+            console.log(`📦 Producto: ${item.name} | Categoría detectada: ${normalizedName}`);
+
+            // ✅ Si la categoría contiene palabras clave relacionadas
+            const esElegible = /\bbebidas?\b|\bfavoritos?\b|\bcalientes?\b|\brefrescantes?\b/.test(
+              normalizedName
+            );
+
+            if (esElegible) {
               const cliente = db
                 .prepare("SELECT id FROM clientes WHERE square_id = ?")
                 .get(customerIdSquare);
@@ -119,7 +129,9 @@ router.post(
                 `).run(cliente.id, fecha, 1, `Compra de ${item.name} (${categoryName})`);
 
                 puntosAgregados++;
-                console.log(`🥤 +1 punto agregado y transacción registrada para cliente ${cliente.id}`);
+                console.log(
+                  `🥤 +1 punto agregado y transacción registrada para cliente ${cliente.id}`
+                );
               } else {
                 console.warn("⚠️ Cliente no encontrado en la base de datos con ese square_id");
               }
