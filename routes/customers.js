@@ -60,8 +60,8 @@ router.get("/", (req, res) => {
   }
 });
 
-// ==========================
-// Actualizar puntos de cliente
+
+// Actualizar puntos de cliente (sumar o restar)
 // ==========================
 router.put("/:id/puntos", (req, res) => {
   try {
@@ -72,31 +72,42 @@ router.put("/:id/puntos", (req, res) => {
       return res.status(400).json({ error: "El valor de puntos debe ser numérico." });
     }
 
-    const fecha = new Date().toISOString();
-
-    // Registrar transacción
-    const insertTrans = db.prepare(`
-      INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
-      VALUES (?, ?, ?, ?)
-    `);
-    insertTrans.run(id, fecha, puntos, motivo || "Ajuste manual");
-
-    // Actualizar puntos del cliente
-    const updateClient = db.prepare(`
-      UPDATE clientes SET puntos = puntos + ? WHERE id = ?
-    `);
-    const result = updateClient.run(puntos, id);
-
-    if (result.changes === 0) {
+    // 🧠 Verificar si el cliente existe
+    const cliente = db.prepare("SELECT * FROM clientes WHERE id = ?").get(id);
+    if (!cliente) {
       return res.status(404).json({ error: "Cliente no encontrado." });
     }
 
-    res.json({ mensaje: "✅ Puntos actualizados correctamente" });
+    // ⚠️ Si es una resta (canje), validar que tenga puntos suficientes
+    if (puntos < 0 && cliente.puntos < Math.abs(puntos)) {
+      return res.status(400).json({ error: "El cliente no tiene suficientes puntos para canjear." });
+    }
+
+    const fecha = new Date().toISOString();
+
+    // 💾 Registrar transacción
+    db.prepare(`
+      INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
+      VALUES (?, ?, ?, ?)
+    `).run(id, fecha, puntos, motivo || (puntos > 0 ? "Bonus" : "Canje de producto"));
+
+    // 🔁 Actualizar puntos del cliente
+    db.prepare(`
+      UPDATE clientes SET puntos = puntos + ? WHERE id = ?
+    `).run(puntos, id);
+
+    res.json({
+      mensaje: puntos > 0
+        ? "✅ Puntos agregados correctamente."
+        : "🎁 Canje registrado correctamente.",
+    });
+
   } catch (err) {
     console.error("❌ Error al actualizar puntos:", err.message);
     res.status(500).json({ error: "Error al actualizar puntos." });
   }
 });
+
 
 // ==========================
 // ❌ Eliminar cliente por ID (sincronizado con Square)
