@@ -74,9 +74,7 @@ document.getElementById("addBtn").addEventListener("click", async () => {
 async function loadCustomers() {
   try {
     const res = await fetch(API_BASE, {
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
+      headers: { "Authorization": `Bearer ${token}` },
     });
 
     const data = await res.json();
@@ -101,6 +99,7 @@ async function loadCustomers() {
         <td>${c.puntos}</td>
         <td>
           <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">+1 pts</button>
+          <button class="btn btn-sm btn-warning" onclick="redeemPoints(${c.id}, ${c.puntos})">🎁 Canjear</button>
           <button class="btn btn-sm btn-secondary" onclick="viewTransactions(${c.id})">📜 Ver historial</button>
           <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.nombre}')">🗑️ Eliminar</button>
         </td>
@@ -128,16 +127,52 @@ async function addPoints(id) {
     });
 
     const data = await res.json();
-
-    if (!res.ok) {
-      alert(data.error || "Error al sumar puntos.");
-      return;
-    }
-
+    if (!res.ok) return alert(data.error || "Error al sumar puntos.");
     loadCustomers();
   } catch (err) {
     console.error("❌ Error al sumar puntos:", err);
     alert("No se pudieron agregar los puntos.");
+  }
+}
+
+// =======================
+// 🎁 Canjear puntos
+// =======================
+async function redeemPoints(id, puntosActuales) {
+  if (puntosActuales < 10) {
+    alert("❌ El cliente no tiene suficientes puntos (mínimo 10 para canjear).");
+    return;
+  }
+
+  const producto = prompt("🛍️ Ingresa el producto por el que se canjean los puntos:");
+  if (!producto || producto.trim() === "") {
+    alert("Debes ingresar un nombre de producto para registrar el canje.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/${id}/puntos`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ puntos: -10, motivo: `Canje por ${producto}` }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.error || "Error al registrar el canje.");
+      return;
+    }
+
+    alert(`🎉 Canje registrado correctamente: "${producto}" (-10 pts)`);
+    loadCustomers();
+
+  } catch (err) {
+    console.error("❌ Error al canjear puntos:", err);
+    alert("Error al registrar el canje (problema de conexión).");
   }
 }
 
@@ -159,9 +194,7 @@ async function deleteCustomer(id, nombre) {
   try {
     const res = await fetch(`${API_BASE}/${id}`, {
       method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-      },
+      headers: { "Authorization": `Bearer ${token}` },
     });
 
     const data = await res.json();
