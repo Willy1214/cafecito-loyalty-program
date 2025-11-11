@@ -43,6 +43,8 @@
       >
 
       <button id="loginBtn" class="btn btn-primary w-100">Entrar</button>
+      <button id="createUserBtn" class="btn btn-outline-secondary w-100 mt-2">Crear usuario</button>
+
       <p id="msg" class="text-center mt-3 text-danger small"></p>
     </div>
   </div>
@@ -89,6 +91,38 @@
         console.error("❌ Error en conexión:", err);
       }
     });
+
+    document.getElementById("createUserBtn").addEventListener("click", async () => {
+  const nombre = prompt("👤 Ingresa el nombre del nuevo usuario:");
+  const email = prompt("📧 Ingresa el correo del nuevo usuario:");
+  const password = prompt("🔑 Ingresa la contraseña:");
+  const masterKey = prompt("🛡️ Ingresa la clave maestra:");
+
+  if (!nombre || !email || !password || !masterKey) {
+    alert("❌ Todos los campos son obligatorios.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${apiBase}/api/users/create-admin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre, email, password, masterKey }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert("✅ Usuario administrador creado correctamente.");
+    } else {
+      alert("⚠️ " + (data.error || "Error al crear usuario."));
+    }
+  } catch (err) {
+    console.error("❌ Error:", err);
+    alert("Error de conexión con el servidor.");
+  }
+});
+
   </script>
 </body>
 </html>

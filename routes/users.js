@@ -87,4 +87,42 @@ router.post("/login", (req, res) => {
   }
 });
 
+// ==========================
+// CREAR ADMIN CON CLAVE MAESTRA
+// ==========================
+router.post("/create-admin", (req, res) => {
+  try {
+    const { nombre, email, password, masterKey } = req.body;
+    const MASTER_KEY = process.env.MASTER_KEY || "CafecitoMaster123"; // 🔐 cámbiala en producción
+
+    if (masterKey !== MASTER_KEY) {
+      return res.status(403).json({ error: "Clave maestra incorrecta." });
+    }
+
+    if (!nombre || !email || !password) {
+      return res.status(400).json({ error: "Faltan datos obligatorios." });
+    }
+
+    const existing = db.prepare("SELECT * FROM usuarios WHERE email = ?").get(email);
+    if (existing) {
+      return res.status(400).json({ error: "El usuario ya existe." });
+    }
+
+    const hashed = bcrypt.hashSync(password, 10);
+    const stmt = db.prepare(
+      "INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)"
+    );
+    const result = stmt.run(nombre, email, hashed, "admin");
+
+    res.json({
+      mensaje: "✅ Usuario administrador creado correctamente",
+      id: result.lastInsertRowid,
+    });
+  } catch (err) {
+    console.error("❌ Error al crear admin:", err.message);
+    res.status(500).json({ error: "Error en el servidor." });
+  }
+});
+
+
 module.exports = router;
