@@ -55,7 +55,7 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
     // ===============================
     // 3️⃣ Filtrar eventos relevantes
     // ===============================
-    const eventosEsperados = ["payment.created", "customer.created", "customer.updated"];
+    const eventosEsperados = ["payment.created", "customer.created", "customer.updated", "customer.deleted" ];
 
     if (!eventosEsperados.includes(event.type)) {
       console.log(`ℹ️ Evento ${event.type} ignorado.`);
