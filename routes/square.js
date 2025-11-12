@@ -304,6 +304,31 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
         ).run(nombre, email, squareId);
         console.log(`🆕 Cliente sincronizado (${nombre})`);
       }
+
+    // 🗑️ Eliminar cliente cuando se borra en Square
+    if (event.type === "customer.deleted") {
+      const customer = event.data.object.customer;
+      const squareId = customer.id;
+
+      try {
+        const cliente = db.prepare("SELECT id FROM clientes WHERE square_id = ?").get(squareId);
+
+        if (!cliente) {
+          console.log(`ℹ️ Cliente con Square ID ${squareId} no existe localmente, nada que eliminar.`);
+          return res.status(200).send("Cliente ya no existe localmente");
+        }
+
+        // 🧹 Eliminar transacciones asociadas
+        db.prepare("DELETE FROM transacciones WHERE cliente_id = ?").run(cliente.id);
+
+        // 🧹 Eliminar cliente local
+        db.prepare("DELETE FROM clientes WHERE square_id = ?").run(squareId);
+
+        console.log(`🗑️ Cliente eliminado localmente (${squareId}) tras eliminación en Square`);
+      } catch (err) {
+        console.error("❌ Error eliminando cliente por webhook:", err.message);
+      }
+    }
     }
 
     res.status(200).send("OK ✅");
