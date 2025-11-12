@@ -18,7 +18,7 @@ const squareWebhook = require("./routes/square"); // ⚠️ Cargar antes del JSO
 const userRoutes = require("./routes/users");
 const customerRoutes = require("./routes/customers");
 const transactionRoutes = require("./routes/transactions");
-const syncRoutes = require("./routes/syncCustomers");
+const { router: syncRoutes, syncClientes } = require("./routes/syncCustomers");
 
 // ===============================
 // 🪝 Ruta especial: Webhook de Square
@@ -60,8 +60,6 @@ app.use("/api/customers", verifyToken, customerRoutes); // protegida
 app.use("/api/transactions", verifyToken, transactionRoutes); // protegida
 app.use("/api/customers", syncRoutes);
 
-
-
 // ===============================
 // ⚠️ Ruta por defecto
 // ===============================
@@ -74,8 +72,18 @@ app.use((req, res) => {
 });
 
 // ===============================
-// 🚀 Iniciar servidor
+// 🚀 Iniciar servidor + sincronización automática
 // ===============================
-app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
-});
+(async () => {
+  console.log("🔄 Sincronizando clientes existentes desde Square...");
+  try {
+    await syncClientes();
+    console.log("✅ Sincronización inicial completada.");
+  } catch (err) {
+    console.error("❌ Error durante la sincronización inicial:", err.message);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
+  });
+})();
