@@ -304,8 +304,8 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
         ).run(nombre, email, squareId);
         console.log(`🆕 Cliente sincronizado (${nombre})`);
       }
-
-    // 🗑️ Eliminar cliente cuando se borra en Square
+    }
+        // 🗑️ Eliminar cliente cuando se borra en Square
     if (event.type === "customer.deleted") {
       const customer = event.data.object.customer;
       const squareId = customer.id;
@@ -328,7 +328,6 @@ router.post("/webhook", express.raw({ type: "*/*" }), async (req, res) => {
       } catch (err) {
         console.error("❌ Error eliminando cliente por webhook:", err.message);
       }
-    }
     }
 
     res.status(200).send("OK ✅");
