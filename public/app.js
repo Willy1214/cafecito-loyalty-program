@@ -195,7 +195,7 @@ function viewTransactions(id) {
 // 🗑️ Eliminar cliente
 // =======================
 async function deleteCustomer(id, nombre) {
-  const confirmDelete = confirm(
+  const confirmDelete = confirm.Dialog(
     `¿ Seguro que deseas eliminar a "${nombre}"? `
   );
   if (!confirmDelete) return;
