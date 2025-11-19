@@ -191,24 +191,27 @@ function viewTransactions(id) {
   window.location.href = "transactions.html";
 }
 
+
 // =======================
 // 🗑️ Eliminar cliente
 // =======================
 async function deleteCustomer(id, nombre) {
-  const confirmDelete = confirm.Dialog(
-    `¿ Seguro que deseas eliminar a "${nombre}"? `
-  );
+  // usamos la función personalizada confirmDialog (retorna Promise<boolean>)
+  const confirmDelete = await confirmDialog(`¿Seguro que deseas eliminar a "${nombre}"?`);
   if (!confirmDelete) return;
 
   try {
     const res = await fetch(`${API_BASE}/${id}`, {
       method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { "Authorization": `Bearer ${token}` },
     });
 
     const data = await res.json();
-    if (!res.ok)
-      return notify(data.error || "Error al eliminar cliente.", "error");
+
+    if (!res.ok) {
+      notify(data.error || "Error al eliminar cliente.", "error");
+      return;
+    }
 
     notify("Cliente eliminado correctamente.", "success");
     loadCustomers();
@@ -217,6 +220,7 @@ async function deleteCustomer(id, nombre) {
     notify("Error al eliminar cliente.", "error");
   }
 }
+
 
 // =======================
 // 🚀 Cargar clientes al iniciar
