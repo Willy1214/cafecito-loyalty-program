@@ -155,7 +155,7 @@ router.post(
               if (itemName) {
                 const n = itemName.toLowerCase();
                 if (
-                  /\b(café|cafe|americano|latte|capuchino|cappuccino|espresso|té|te|tea|smoothie|jugo|zumo|milkshake|batido|frapp)\b/.test(
+                  /\b(chai|smothie|smothi|café|cafe|americano|latte|capuchino|cappuccino|espresso|té|te|tea|smoothie|jugo|zumo|milkshake|batido|frapp)\b/.test(
                     n
                   )
                 ) {
