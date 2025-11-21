@@ -6,6 +6,7 @@ const cors = require("cors");
 const path = require("path");
 const jwt = require("jsonwebtoken");
 const { WebSocketServer } = require("ws"); 
+const { setSendUpdate } = require("./utils/sse");
 require("dotenv").config();
 
 const app = express();
@@ -33,6 +34,43 @@ app.use("/api/square", squareWebhook);
 app.use(cors({ origin: "*" }));
 app.use(express.json()); // ⚠️ Ahora sí, después del webhook
 app.use(express.static(path.join(__dirname, "public")));
+
+// SSE: clientes conectados
+const sseClients = new Set();
+
+app.get("/events", (req, res) => {
+  // Cabeceras SSE
+  res.set({
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  });
+  res.flushHeaders?.();
+
+  // Enviar un ping inicial (opcional)
+  res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+  // Guardar cliente
+  const client = { id: Date.now() + Math.random(), res };
+  sseClients.add(client);
+
+  req.on("close", () => {
+    sseClients.delete(client);
+  });
+});
+
+// Función que envía updates a todos los clientes SSE
+setSendUpdate((data) => {
+  const payload = typeof data === "string" ? data : JSON.stringify(data);
+  for (const c of sseClients) {
+    try {
+      c.res.write(`data: ${payload}\n\n`);
+    } catch (err) {
+      // ignorar clientes muertos
+      sseClients.delete(c);
+    }
+  }
+});
 
 // ===============================
 // 🔒 Middleware de autenticación

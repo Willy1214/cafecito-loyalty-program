@@ -1,3 +1,4 @@
+// routes/square.js
 // ===============================
 // 💳 Webhook Square — sistema de puntos robusto (categoría “Bebidas”)
 // ===============================
@@ -7,10 +8,12 @@ const router = express.Router();
 const database = require("../database/db");
 const db = database.db;
 const squareClient = require("../config/squareClient");
+const ordenesCache = require("../utils/ordenesCache");
+const { sendUpdate } = require("../utils/sse");
 require("dotenv").config();
 
 // ===============================
-// 🔥 Funciones anti-duplicado (AGREGADAS)
+// 🔥 Funciones anti-duplicado (DB)
 // ===============================
 function ordenYaProcesada(orderId) {
   const row = db.prepare("SELECT id FROM ordenes WHERE id = ?").get(orderId);
@@ -18,10 +21,20 @@ function ordenYaProcesada(orderId) {
 }
 
 function registrarOrdenProcesada(orderId) {
-  db.prepare(`
-    INSERT INTO ordenes (id, fecha)
-    VALUES (?, datetime('now'))
-  `).run(orderId);
+  try {
+    db.prepare(`
+      INSERT INTO ordenes (id, fecha)
+      VALUES (?, datetime('now'))
+    `).run(orderId);
+    return true;
+  } catch (err) {
+    // Si otra instancia ya insertó la orden, simplemente ignoramos (idempotencia)
+    if (err && err.code === "SQLITE_CONSTRAINT_PRIMARYKEY") {
+      console.warn("⚠️ Orden ya registrada en DB (race):", orderId);
+      return false;
+    }
+    throw err;
+  }
 }
 
 router.post(
@@ -54,7 +67,7 @@ router.post(
       }
 
       // ===============================
-      // 2️⃣ Parsear evento y evitar duplicados
+      // 2️⃣ Parsear evento y evitar duplicados por event.id
       // ===============================
       const event = JSON.parse(rawBody);
       const eventId = event.id;
@@ -90,7 +103,7 @@ router.post(
       }
 
       // ===============================
-      // 4️⃣ Procesar pago creado
+      // 4️⃣ Procesar pago creado (solo payment.created)
       // ===============================
       if (event.type === "payment.created") {
         const payment = event.data.object.payment;
@@ -102,13 +115,22 @@ router.post(
           return res.status(200).send("OK sin order_id");
         }
 
-        // ============================================
-        // 🚫 ANTI-DUPLICADO POR order_id (AGREGADO)
-        // ============================================
-        if (ordenYaProcesada(orderId)) {
-          console.warn(`🚫 Orden ${orderId} ya procesada, ignorando puntos.`);
-          return res.status(200).send("Orden duplicada ignorada");
+        // ---------- 1) Protección en memoria rápida ----------
+        if (ordenesCache.has(orderId)) {
+          console.warn(`🚫 Orden ${orderId} ya procesada (cache), ignorando puntos.`);
+          return res.status(200).send("Orden duplicada ignorada (cache)");
         }
+
+        // ---------- 2) Comprobar en DB (idempotencia persistente) ----------
+        if (ordenYaProcesada(orderId)) {
+          console.warn(`🚫 Orden ${orderId} ya procesada (db), ignorando puntos.`);
+          // Aseguramos que la cache también la marque
+          ordenesCache.add(orderId);
+          return res.status(200).send("Orden duplicada ignorada (db)");
+        }
+
+        // Marcamos en cache *antes* de procesar para evitar races dentro del mismo runtime
+        ordenesCache.add(orderId);
 
         const { ordersApi, catalogApi } = squareClient;
 
@@ -120,11 +142,14 @@ router.post(
             console.warn(
               `⚠️ Orden en estado ${order.state}, no se otorgan puntos.`
             );
+            // si no la procesamos, quitamos de la cache (no registrada)
+            ordenesCache.remove(orderId);
             return res.status(200).send("Orden no completada");
           }
 
           if (!order.lineItems || order.lineItems.length === 0) {
             console.warn("⚠️ Orden sin productos.");
+            ordenesCache.remove(orderId);
             return res.status(200).send("Orden vacía");
           }
 
@@ -204,6 +229,8 @@ router.post(
 
           if (!cliente) {
             console.warn("⚠️ Cliente no registrado");
+            // dejamos el order en cache? No — la sacamos: no procesada
+            ordenesCache.remove(orderId);
             return res.status(200).send("Cliente no encontrado");
           }
 
@@ -244,16 +271,29 @@ router.post(
           // ==================================================
           // 🧩 MARCAR ORDEN COMO PROCESADA (AGREGADO AQUÍ)
           // ==================================================
-          registrarOrdenProcesada(orderId);
+          try {
+            registrarOrdenProcesada(orderId);
+          } catch (err) {
+            // registrarOrdenProcesada ya maneja UNIQUE constraint, pero por si acaso:
+            console.error("❌ Error registrando orden procesada:", err);
+          }
 
           console.log("✅ Total agregados:", puntosAgregados);
 
-          req.app.get("sendUpdate")({
+          // Enviar update SSE global
+          sendUpdate({
             type: "square_update",
             event: event.type,
+            orderId,
+            puntos: puntosAgregados,
           });
+
+          return res.status(200).send("OK");
         } catch (err) {
           console.error("❌ Error procesando orden:", err);
+          // En caso de error serio, remover la marca en cache para permitir reintento
+          ordenesCache.remove(orderId);
+          return res.status(500).send("Error procesando orden");
         }
       }
 
@@ -282,7 +322,7 @@ router.post(
           ).run(nombre, email, squareId);
 
           console.log(`🆕 Cliente sincronizado (${nombre})`);
-          req.app.get("sendUpdate")({
+          sendUpdate({
             type: "square_update",
             event: event.type,
           });
@@ -304,7 +344,7 @@ router.post(
           db.prepare("DELETE FROM clientes WHERE square_id = ?").run(squareId);
 
           console.log(`🗑️ Cliente eliminado localmente (${squareId})`);
-          req.app.get("sendUpdate")({
+          sendUpdate({
             type: "square_update",
             event: event.type,
           });
