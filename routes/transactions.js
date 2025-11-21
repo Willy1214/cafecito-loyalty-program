@@ -3,8 +3,8 @@
 // ==================================
 const express = require("express");
 const router = express.Router();
-const { db } = require("../database/db");
-
+const database = require("../database/db");
+const db = database.db;
 // ==========================
 // 📋 Obtener TODAS las transacciones
 // ==========================

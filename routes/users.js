@@ -4,7 +4,8 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const { db } = require("../database/db");
+const database = require("../database/db");
+const db = database.db;
 
 const router = express.Router();
 const SECRET_KEY = process.env.JWT_SECRET || "Willy123"; // 🔐 usa variable de entorno en producción

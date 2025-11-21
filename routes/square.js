@@ -4,7 +4,8 @@
 const express = require("express");
 const crypto = require("crypto");
 const router = express.Router();
-const { db, ordenYaProcesada, registrarOrdenProcesada } = require("../database/db");
+const database = require("../database/db");
+const db = database.db;
 const squareClient = require("../config/squareClient");
 require("dotenv").config();
 
