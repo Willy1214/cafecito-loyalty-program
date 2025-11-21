@@ -1,21 +1,38 @@
 # 🔒 Archivos sensibles
 .env
+.env.*
 
-# 🗃️ Dependencias
+
+# 🗂️ Dependencias
 node_modules/
 
-# ⚙️ Logs y temporales
+
+# 📝 Logs y temporales
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
 
-# 🧩 Sistema operativo
+
+# 🖼️ Sistema operativo
 .DS_Store
 Thumbs.db
 
-# 🚀 Archivos de build o cache
+
+# 🚀 Builds o archivos generados
 dist/
 build/
-*.sqlite
-*.db
+tmp/
+cache/
+
+
+# 🗃️ Base de datos (solo ignorar copias locales opcionales)
+#    ⚠️ IMPORTANTE: NO ignorar la DB principal que subirá a Render
+database/local_*.db
+database/local_*.sqlite
+database/*.sqlite-journal
+database/*.db-journal
+
+
+# 🧪 Tests
+coverage/
