@@ -16,9 +16,28 @@ if (!token) {
 }
 
 // =======================
+// 🔁 Actualizar clientes cuando Square mande un evento
+// =======================
+const evtSource = new EventSource(
+  `${window.API_BASE.replace("/api/customers", "")}/events`
+);
+
+evtSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log("🔔 Evento SSE recibido:", data);
+
+  notify("Actualizando clientes...", "info");
+
+  // Recargar solamente la tabla
+  loadCustomers();
+};
+
+// =======================
 // 🚪 Cerrar sesión
 // =======================
-function logout() {
+async function logout() {
+  const ok = await confirm.Dialog("¿Seguro que deseas cerrar sesión?");
+  if (!ok) return;
   notify("Sesión cerrada correctamente", "warning");
   localStorage.removeItem("token");
   localStorage.removeItem("usuario");

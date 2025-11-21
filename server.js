@@ -5,6 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const jwt = require("jsonwebtoken");
+const { WebSocketServer } = require("ws"); 
 require("dotenv").config();
 
 const app = express();

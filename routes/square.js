@@ -8,6 +8,21 @@ const db = require("../database/db");
 const squareClient = require("../config/squareClient");
 require("dotenv").config();
 
+// ===============================
+// 🔥 Funciones anti-duplicado (AGREGADAS)
+// ===============================
+function ordenYaProcesada(orderId) {
+  const row = db.prepare("SELECT id FROM ordenes WHERE id = ?").get(orderId);
+  return !!row;
+}
+
+function registrarOrdenProcesada(orderId) {
+  db.prepare(`
+    INSERT INTO ordenes (id, fecha)
+    VALUES (?, datetime('now'))
+  `).run(orderId);
+}
+
 router.post(
   "/webhook",
   express.raw({ type: "*/*" }),
@@ -84,6 +99,14 @@ router.post(
         if (!orderId) {
           console.warn("⚠️ El pago no incluye order_id");
           return res.status(200).send("OK sin order_id");
+        }
+
+        // ============================================
+        // 🚫 ANTI-DUPLICADO POR order_id (AGREGADO)
+        // ============================================
+        if (ordenYaProcesada(orderId)) {
+          console.warn(`🚫 Orden ${orderId} ya procesada, ignorando puntos.`);
+          return res.status(200).send("Orden duplicada ignorada");
         }
 
         const { ordersApi, catalogApi } = squareClient;
@@ -170,8 +193,7 @@ router.post(
           }
 
           // ===============================
-          // ⭐ CAMBIO PRINCIPAL:
-          // SUMAR puntos por CADA bebida
+          // ⭐ SUMAR puntos solo a bebidas
           // ===============================
           let puntosAgregados = 0;
 
@@ -218,7 +240,17 @@ router.post(
             }
           }
 
+          // ==================================================
+          // 🧩 MARCAR ORDEN COMO PROCESADA (AGREGADO AQUÍ)
+          // ==================================================
+          registrarOrdenProcesada(orderId);
+
           console.log("✅ Total agregados:", puntosAgregados);
+
+          req.app.get("sendUpdate")({
+            type: "square_update",
+            event: event.type,
+          });
         } catch (err) {
           console.error("❌ Error procesando orden:", err);
         }
@@ -249,6 +281,10 @@ router.post(
           ).run(nombre, email, squareId);
 
           console.log(`🆕 Cliente sincronizado (${nombre})`);
+          req.app.get("sendUpdate")({
+            type: "square_update",
+            event: event.type,
+          });
         }
       }
 
@@ -267,6 +303,10 @@ router.post(
           db.prepare("DELETE FROM clientes WHERE square_id = ?").run(squareId);
 
           console.log(`🗑️ Cliente eliminado localmente (${squareId})`);
+          req.app.get("sendUpdate")({
+            type: "square_update",
+            event: event.type,
+          });
         }
       }
 

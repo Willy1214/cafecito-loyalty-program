@@ -1,4 +1,4 @@
-// database/db.js (reemplaza completamente tu archivo con esto)
+// database/db.js
 // ===============================
 // 🗄️ CONFIGURACIÓN DE LA BASE DE DATOS (better-sqlite3)
 // ===============================
@@ -22,7 +22,6 @@ const isDevOrSandbox =
 if (isDevOrSandbox) {
   try {
     if (fs.existsSync(dbPath)) {
-      // Eliminar el archivo ANTES de abrir la conexión
       fs.unlinkSync(dbPath);
       console.log("🧹 (sandbox/dev) Archivo de base de datos eliminado antes de abrir conexión.");
     } else {
@@ -36,7 +35,7 @@ if (isDevOrSandbox) {
 }
 
 // ===============================
-// Abrir conexión (ya con el archivo limpio si estamos en sandbox)
+// Abrir conexión
 // ===============================
 let db;
 try {
@@ -48,7 +47,7 @@ try {
 }
 
 // ===============================
-// 🧱 CREACIÓN / ACTUALIZACIÓN DE TABLAS
+// CREACIÓN / ACTUALIZACIÓN DE TABLAS
 // ===============================
 const createTables = () => {
   db.prepare(`
@@ -66,7 +65,9 @@ const createTables = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
       puntos INTEGER DEFAULT 0,
-      nivel TEXT DEFAULT 'Bronce'
+      nivel TEXT DEFAULT 'Bronce',
+      email TEXT,
+      square_id TEXT UNIQUE
     )
   `).run();
 
@@ -89,11 +90,19 @@ const createTables = () => {
     )
   `).run();
 
+  // 🔥 TABLA NUEVA — evita duplicados por order_id
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS ordenes (
+      id TEXT PRIMARY KEY,
+      fecha TEXT
+    )
+  `).run();
+
   console.log("📦 Tablas verificadas o creadas correctamente.");
 };
 
 // ===============================
-// 🩺 VERIFICAR Y AGREGAR COLUMNAS FALTANTES
+// Agregar columnas faltantes
 // ===============================
 const ensureColumnExists = (tableName, columnName, columnType) => {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
@@ -102,38 +111,53 @@ const ensureColumnExists = (tableName, columnName, columnType) => {
   if (!exists) {
     try {
       db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType};`).run();
-      console.log(`🆕 Columna '${columnName}' agregada a la tabla '${tableName}'.`);
+      console.log(`🆕 Columna '${columnName}' agregada a '${tableName}'.`);
     } catch (err) {
-      console.error(`❌ Error al agregar columna '${columnName}' a '${tableName}':`, err.message);
+      console.error(`❌ Error agregando columna '${columnName}' a '${tableName}':`, err.message);
     }
-  } else {
-    console.log(`⚙️ Columna '${columnName}' ya existe en '${tableName}'.`);
   }
 };
 
 // ===============================
-// Ejecutar setup
+// Inicialización
 // ===============================
 createTables();
-ensureColumnExists("clientes", "email", "TEXT");
-ensureColumnExists("clientes", "square_id", "TEXT");
 
-// ===============================
-// DEBUG: mostrar estado de sqlite_sequence y conteo clientes
-// ===============================
+ensureColumnExists("clientes", "email", "TEXT");
+ensureColumnExists("clientes", "square_id", "TEXT UNIQUE");
+
 try {
-  const cntRow = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get();
-  const cnt = cntRow ? cntRow.cnt : 0;
-  const seqRow = db.prepare("SELECT name, seq FROM sqlite_sequence WHERE name='clientes'").all();
+  const cnt = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get()?.cnt || 0;
   console.log(`🔎 Clientes en tabla: ${cnt}`);
-  if (seqRow && seqRow.length) {
-    console.log(`🔎 sqlite_sequence (clientes):`, seqRow);
-  } else {
-    console.log("🔎 sqlite_sequence: no hay entrada para 'clientes' (secuencia limpia).");
-  }
-} catch (err) {
-  console.warn("⚠️ No se pudo consultar sqlite_sequence:", err.message);
+} catch {}
+
+console.log("✅ Base de datos lista.");
+
+
+// ======================================================
+// 🚀 FUNCIONES ANTI-DUPLICADOS PARA EL WEBHOOK
+// ======================================================
+
+// Verifica si un order_id ya fue procesado
+function ordenYaProcesada(orderId) {
+  const row = db.prepare("SELECT id FROM ordenes WHERE id = ?").get(orderId);
+  return !!row; // true si existe
 }
 
-console.log("✅ Base de datos lista y estructurada.");
-module.exports = db;
+// Marca una orden como procesada
+function registrarOrdenProcesada(orderId) {
+  db.prepare(`
+    INSERT INTO ordenes (id, fecha)
+    VALUES (?, datetime('now'))
+  `).run(orderId);
+}
+
+
+// ======================================================
+// EXPORTS
+// ======================================================
+module.exports = {
+  db,
+  ordenYaProcesada,
+  registrarOrdenProcesada
+};
