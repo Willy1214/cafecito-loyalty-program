@@ -36,7 +36,7 @@ evtSource.onmessage = (event) => {
 // 🚪 Cerrar sesión
 // =======================
 async function logout() {
-  const ok = await confirm.Dialog("¿Seguro que deseas cerrar sesión?");
+  const ok = await confirmDialog("¿Seguro que deseas cerrar sesión?");
   if (!ok) return;
   notify("Sesión cerrada correctamente", "warning");
   localStorage.removeItem("token");
