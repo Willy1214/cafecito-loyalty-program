@@ -1,13 +1,13 @@
 // =======================
-// 🌐 Detectar entorno
+// 🌐 Detectar entorno (local o producción)
 // =======================
 const isLocal =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1";
 
 const API_BASE = isLocal
-  ? "http://localhost:3000"
-  : "https://cafecito-loyalty-program-production.up.railway.app";
+  ? "http://localhost:3000/api/customers"
+  : "https://cafecito-loyalty-program-production.up.railway.app/api/customers";
 
 const token = localStorage.getItem("token");
 
@@ -15,26 +15,26 @@ if (!token) {
   window.location.href = "login.html";
 }
 
-
-
 // =======================
-// 🌐 SSE: Actualizar en tiempo real
+// 🌐 SSE: Actualizar cuando Square mande evento
 // =======================
-let evtSource;
-try {
-  evtSource = new EventSource(`${API_BASE}/events`);
+const eventsURL = API_BASE.replace("/api/customers", "") + "/events";
 
-  evtSource.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    console.log("🔔 Evento SSE recibido:", data);
+console.log("📡 Conectando SSE a:", eventsURL);
 
-    notify("Actualizando clientes...", "info");
-    loadCustomers();
-  };
-} catch (err) {
-  console.warn("SSE no disponible:", err);
-}
+const evtSource = new EventSource(eventsURL);
 
+evtSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log("🔔 Evento SSE recibido:", data);
+
+  notify("Actualizando clientes...", "info");
+  loadCustomers();
+};
+
+evtSource.onerror = (err) => {
+  console.error("❌ Error en SSE:", err);
+};
 
 
 // =======================
@@ -43,21 +43,17 @@ try {
 async function logout() {
   const ok = await confirmDialog("¿Seguro que deseas cerrar sesión?");
   if (!ok) return;
-
   notify("Sesión cerrada correctamente", "warning");
   localStorage.removeItem("token");
   localStorage.removeItem("usuario");
-
   window.location.href = "login.html";
 }
 
 
-
 // =======================
-// 👉 Lista global para filtros
+// 👉 Lista global que usaremos para filtrar
 // =======================
 let customers = [];
-
 
 
 // =======================
@@ -68,7 +64,7 @@ document.getElementById("addBtn").addEventListener("click", async () => {
   if (!name) return notify("Por favor ingresa un nombre.", "error");
 
   try {
-    const res = await fetch(`${API_BASE}/api/customers/register`, {
+    const res = await fetch(`${API_BASE}/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -94,23 +90,22 @@ document.getElementById("addBtn").addEventListener("click", async () => {
 });
 
 
-
 // =======================
 // 📋 Cargar lista de clientes
 // =======================
 async function loadCustomers() {
   try {
-    const res = await fetch(`${API_BASE}/api/customers`, {
+    const res = await fetch(API_BASE, {
       headers: { Authorization: `Bearer ${token}` },
     });
+
+    const data = await res.json();
 
     if (res.status === 401 || res.status === 403) {
       notify("Tu sesión ha expirado. Inicia sesión nuevamente.", "warning");
       logout();
       return;
     }
-
-    const data = await res.json();
 
     customers = Array.isArray(data) ? data : [];
     renderCustomers(customers);
@@ -119,7 +114,6 @@ async function loadCustomers() {
     notify("Error al cargar la lista de clientes.", "error");
   }
 }
-
 
 
 // =======================
@@ -137,22 +131,20 @@ function renderCustomers(list) {
   table.innerHTML = list
     .map(
       (c) => `
-        <tr>
-          <td>${c.id}</td>
-          <td>${c.nombre}</td>
-          <td>${c.puntos}</td>
-          <td>
-            <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">+1 pts</button>
-            <button class="btn btn-sm btn-warning" onclick="redeemPoints(${c.id}, ${c.puntos})">🎁 Canjear</button>
-            <button class="btn btn-sm btn-secondary" onclick="viewTransactions(${c.id})">📜 Ver historial</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.nombre}')">🗑️</button>
-          </td>
-        </tr>
-      `
+    <tr>
+      <td>${c.id}</td>
+      <td>${c.nombre}</td>
+      <td>${c.puntos}</td>
+      <td>
+        <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">+1 pts</button>
+        <button class="btn btn-sm btn-warning" onclick="redeemPoints(${c.id}, ${c.puntos})">🎁 Canjear</button>
+        <button class="btn btn-sm btn-secondary" onclick="viewTransactions(${c.id})">📜 Ver historial</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.nombre}')">🗑️ Eliminar</button>
+      </td>
+    </tr>`
     )
     .join("");
 }
-
 
 
 // =======================
@@ -161,21 +153,20 @@ function renderCustomers(list) {
 document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("searchInput");
 
-  searchInput.addEventListener("input", () => {
-    const text = searchInput.value.toLowerCase().trim();
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      const text = searchInput.value.toLowerCase().trim();
 
-    const filtered = customers.filter(
-      (c) =>
-        c.nombre.toLowerCase().includes(text) ||
-        String(c.id).includes(text)
-    );
+      const filtered = customers.filter(
+        (c) =>
+          c.nombre.toLowerCase().includes(text) ||
+          String(c.id).includes(text)
+      );
 
-    renderCustomers(filtered);
-  });
-
-  loadCustomers(); // Cargar al iniciar DOM ✔️
+      renderCustomers(filtered);
+    });
+  }
 });
-
 
 
 // =======================
@@ -183,7 +174,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // =======================
 async function addPoints(id) {
   try {
-    const res = await fetch(`${API_BASE}/api/customers/${id}/puntos`, {
+    const res = await fetch(`${API_BASE}/${id}/puntos`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -193,9 +184,7 @@ async function addPoints(id) {
     });
 
     const data = await res.json();
-
-    if (!res.ok)
-      return notify(data.error || "Error al sumar puntos.", "error");
+    if (!res.ok) return notify(data.error || "Error al sumar puntos.", "error");
 
     notify("Punto agregado ✔️", "success");
     loadCustomers();
@@ -206,7 +195,6 @@ async function addPoints(id) {
 }
 
 
-
 // =======================
 // 🎁 Canjear puntos
 // =======================
@@ -215,13 +203,14 @@ async function redeemPoints(id, puntosActuales) {
     return notify("El cliente no tiene suficientes puntos (mínimo 10).", "error");
 
   const producto = prompt("🛍️ Producto del canje:");
+
   if (!producto || producto.trim() === "") {
     notify("Debes ingresar un nombre de producto.", "error");
     return;
   }
 
   try {
-    const res = await fetch(`${API_BASE}/api/customers/${id}/puntos`, {
+    const res = await fetch(`${API_BASE}/${id}/puntos`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -244,7 +233,6 @@ async function redeemPoints(id, puntosActuales) {
 }
 
 
-
 // =======================
 // 📜 Ver historial
 // =======================
@@ -254,26 +242,22 @@ function viewTransactions(id) {
 }
 
 
-
 // =======================
 // 🗑️ Eliminar cliente
 // =======================
 async function deleteCustomer(id, nombre) {
-  const confirmDelete = await confirmDialog(
-    `¿Seguro que deseas eliminar a "${nombre}"?`
-  );
+  const confirmDelete = await confirmDialog(`¿Seguro que deseas eliminar a "${nombre}"?`);
   if (!confirmDelete) return;
 
   try {
-    const res = await fetch(`${API_BASE}/api/customers/${id}`, {
+    const res = await fetch(`${API_BASE}/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
 
     const data = await res.json();
 
-    if (!res.ok)
-      return notify(data.error || "Error al eliminar cliente.", "error");
+    if (!res.ok) return notify(data.error || "Error al eliminar cliente.", "error");
 
     notify("Cliente eliminado correctamente.", "success");
     loadCustomers();
@@ -282,3 +266,9 @@ async function deleteCustomer(id, nombre) {
     notify("Error al eliminar cliente.", "error");
   }
 }
+
+
+// =======================
+// 🚀 Cargar clientes al iniciar
+// =======================
+loadCustomers();
