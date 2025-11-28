@@ -9,9 +9,12 @@
     rel="stylesheet"
   >
 </head>
-<body class="bg-light d-flex align-items-center justify-content-center" style="height: 100vh;">
+
+<body class="d-flex align-items-center justify-content-center" 
+      style="height: 100vh; background-color: #40E0D0;"> <!-- 💠 Turquesa -->
 
   <div class="card shadow p-4 text-center" style="width: 380px;">
+
     <!-- 🖼️ Logo -->
     <img 
       src="resources/img/logo_cafecito.jpg" 
@@ -24,7 +27,7 @@
     <h3 class="mb-3 fw-bold">Cafecito del Parque</h3>
     <h5 class="text-muted mb-4">Sistema de Fidelidad</h5>
 
-    <!-- Campos de inicio de sesión -->
+    <!-- Campos -->
     <div class="text-start">
       <label for="email" class="form-label">Correo electrónico</label>
       <input 
@@ -50,14 +53,18 @@
   </div>
 
   <script>
-    // 🌐 Detección inteligente del entorno
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    // 🌐 Detecta entorno
+    const isLocal =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+
     const apiBase = isLocal
       ? "http://localhost:3000"
       : "https://cafecito-loyalty-program-production.up.railway.app";
 
     const apiURL = `${apiBase}/api/users/login`;
 
+    // 🔐 Login
     document.getElementById("loginBtn").addEventListener("click", async () => {
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value.trim();
@@ -88,41 +95,42 @@
         }
       } catch (err) {
         msg.textContent = "Error de conexión con el servidor.";
-        console.error("❌ Error en conexión:", err);
+        console.error("❌ Error:", err);
       }
     });
 
+    // 👤 Crear usuario admin
     document.getElementById("createUserBtn").addEventListener("click", async () => {
-  const nombre = prompt("👤 Ingresa el nombre del nuevo usuario:");
-  const email = prompt("📧 Ingresa el correo del nuevo usuario:");
-  const password = prompt("🔑 Ingresa la contraseña:");
-  const masterKey = prompt("🛡️ Ingresa la clave maestra:");
+      const nombre = prompt("👤 Ingresa el nombre del nuevo usuario:");
+      const email = prompt("📧 Ingresa el correo del nuevo usuario:");
+      const password = prompt("🔑 Ingresa la contraseña:");
+      const masterKey = prompt("🛡️ Ingresa la clave maestra:");
 
-  if (!nombre || !email || !password || !masterKey) {
-    alert("❌ Todos los campos son obligatorios.");
-    return;
-  }
+      if (!nombre || !email || !password || !masterKey) {
+        alert("❌ Todos los campos son obligatorios.");
+        return;
+      }
 
-  try {
-    const res = await fetch(`${apiBase}/api/users/create-admin`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nombre, email, password, masterKey }),
+      try {
+        const res = await fetch(`${apiBase}/api/users/create-admin`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nombre, email, password, masterKey }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          alert("✅ Usuario administrador creado correctamente.");
+        } else {
+          alert("⚠️ " + (data.error || "Error al crear usuario."));
+        }
+      } catch (err) {
+        console.error("❌ Error:", err);
+        alert("Error de conexión con el servidor.");
+      }
     });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      alert("✅ Usuario administrador creado correctamente.");
-    } else {
-      alert("⚠️ " + (data.error || "Error al crear usuario."));
-    }
-  } catch (err) {
-    console.error("❌ Error:", err);
-    alert("Error de conexión con el servidor.");
-  }
-});
-
   </script>
+
 </body>
 </html>
