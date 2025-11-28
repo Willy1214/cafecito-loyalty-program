@@ -106,10 +106,6 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-app.get("/new_user.html", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "new_user.html"));
-});
-
 app.use((req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
 });
