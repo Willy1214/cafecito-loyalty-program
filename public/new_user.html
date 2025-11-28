@@ -37,51 +37,54 @@
     </form>
   </div>
 
-  <script>
-    const isLocal =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
+<script src="./resources/scripts/notifier.js"></script>
 
-    const apiBase = isLocal
-      ? "http://localhost:3000"
-      : "https://cafecito-loyalty-program-production.up.railway.app";
+<script>
+  const isLocal =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
 
-    document.getElementById("userForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
+  const apiBase = isLocal
+    ? "http://localhost:3000"
+    : "https://cafecito-loyalty-program-production.up.railway.app";
 
-      const nombre = document.getElementById("nombre").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value.trim();
-      const masterKey = document.getElementById("masterKey").value.trim();
-      const msg = document.getElementById("msg");
+  document.getElementById("userForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-      msg.textContent = "";
+    const nombre = document.getElementById("nombre").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value.trim();
+    const masterKey = document.getElementById("masterKey").value.trim();
+    const msg = document.getElementById("msg");
 
-      try {
-        const res = await fetch(`${apiBase}/api/users/create-admin`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nombre, email, password, masterKey }),
-        });
+    msg.textContent = "";
 
-        const data = await res.json();
+    try {
+      const res = await fetch(`${apiBase}/api/users/create-admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nombre, email, password, masterKey }),
+      });
 
-        if (res.ok) {
-          msg.style.color = "green";
-          msg.textContent = "Usuario creado correctamente ✔️";
+      const data = await res.json();
 
-          setTimeout(() => {
-            window.location.href = "login.html"; 
-          }, 1500);
-        } else {
-          msg.textContent = data.error || "Error al crear usuario.";
-        }
-      } catch (err) {
-        msg.textContent = "Error de conexión con el servidor.";
-        console.error(err);
+      if (res.ok) {
+        notify("Usuario creado correctamente ✔️", "success");
+
+        setTimeout(() => {
+          window.location.href = "login.html";
+        }, 1500);
+
+      } else {
+        msg.textContent = data.error || "Error al crear usuario.";
       }
-    });
-  </script>
+    } catch (err) {
+      msg.textContent = "Error de conexión con el servidor.";
+      console.error(err);
+    }
+  });
+</script>
+
 
 </body>
 </html>
