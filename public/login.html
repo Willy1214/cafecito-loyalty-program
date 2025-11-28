@@ -100,36 +100,10 @@
     });
 
     // 👤 Crear usuario admin
-    document.getElementById("createUserBtn").addEventListener("click", async () => {
-      const nombre = prompt("👤 Ingresa el nombre del nuevo usuario:");
-      const email = prompt("📧 Ingresa el correo del nuevo usuario:");
-      const password = prompt("🔑 Ingresa la contraseña:");
-      const masterKey = prompt("🛡️ Ingresa la clave maestra:");
-
-      if (!nombre || !email || !password || !masterKey) {
-        alert("❌ Todos los campos son obligatorios.");
-        return;
-      }
-
-      try {
-        const res = await fetch(`${apiBase}/api/users/create-admin`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nombre, email, password, masterKey }),
-        });
-
-        const data = await res.json();
-
-        if (res.ok) {
-          alert("✅ Usuario administrador creado correctamente.");
-        } else {
-          alert("⚠️ " + (data.error || "Error al crear usuario."));
-        }
-      } catch (err) {
-        console.error("❌ Error:", err);
-        alert("Error de conexión con el servidor.");
-      }
+    document.getElementById("createUserBtn").addEventListener("click", () => {
+      window.location.href = "nuevo_usuario.html";
     });
+
   </script>
 
 </body>
