@@ -80,6 +80,17 @@
       </table>
     </div>
 
+    <!-- ⚙️ BOTÓN ADMIN (solo admins lo ven) -->
+    <div class="text-center mt-4">
+      <button 
+        id="adminToolsBtn" 
+        class="btn btn-secondary d-none"
+        onclick="window.location.href='admin_tools.html'"
+      >
+        ⚙️ Herramientas de Administración
+      </button>
+    </div>
+
   </div>
 
   <!-- Detecta entorno -->
@@ -87,6 +98,17 @@
     window.API_BASE = window.location.origin.includes("localhost")
       ? "http://localhost:3000"
       : "https://cafecito-loyalty-program-production.up.railway.app";
+
+    // === Mostrar botón solo si el user es admin ===
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.rol === "admin") {
+          document.getElementById("adminToolsBtn").classList.remove("d-none");
+        }
+      } catch (e) { /* token inválido, ignoramos */ }
+    }
   </script>
 
   <!-- Scripts -->
