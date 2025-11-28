@@ -254,6 +254,6 @@ async function deleteCustomer(id, nombre) {
 }
 
 // =======================
-// 🚀 Cargar clientes al iniciar
+//  Cargar clientes al iniciar
 // =======================
 loadCustomers();
