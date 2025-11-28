@@ -42,16 +42,7 @@ async function logout() {
   window.location.href = "login.html";
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  const container = document.querySelector(".container");
-  if (container) {
-    const logoutBtn = document.createElement("button");
-    logoutBtn.textContent = "Cerrar sesión";
-    logoutBtn.className = "btn btn-danger btn-sm float-end";
-    logoutBtn.onclick = logout;
-    container.prepend(logoutBtn);
-  }
-});
+
 
 // =======================
 // 👉 Lista global que usaremos para filtrar
