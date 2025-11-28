@@ -5,7 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const jwt = require("jsonwebtoken");
-const { WebSocketServer } = require("ws"); 
+const { WebSocketServer } = require("ws");
 const { setSendUpdate } = require("./utils/sse");
 require("dotenv").config();
 
@@ -14,17 +14,16 @@ const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.JWT_SECRET || "Willy123"; // ⚠️ Usa variable de entorno en producción
 
 // ===============================
-// 🧩 Rutas (importar antes de middlewares que parsean JSON)
+// 🧩 Importar rutas
 // ===============================
-const squareWebhook = require("./routes/square"); // ⚠️ Cargar antes del JSON parser
+const squareWebhook = require("./routes/square"); // ⚠️ Debe ir ANTES de JSON parser
 const userRoutes = require("./routes/users");
 const customerRoutes = require("./routes/customers");
 const transactionRoutes = require("./routes/transactions");
 const { router: syncRoutes, syncClientes } = require("./routes/syncCustomers");
 
 // ===============================
-// 🪝 Ruta especial: Webhook de Square
-// (Debe ir antes del express.json())
+// 🪝 Ruta especial: Webhook de Square (ANTES de JSON parser)
 // ===============================
 app.use("/api/square", squareWebhook);
 
@@ -32,27 +31,26 @@ app.use("/api/square", squareWebhook);
 // 🧩 Middlewares globales
 // ===============================
 app.use(cors({ origin: "*" }));
-app.use(express.json()); // ⚠️ Ahora sí, después del webhook
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-
-
-// SSE: clientes conectados
+// ===============================
+// 🔔 SSE — Server Sent Events
+// ===============================
 const sseClients = new Set();
 
-app.get("/events", (req, res) => {
-  // Cabeceras SSE
+app.get("/api/events", (req, res) => {
   res.set({
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
   });
+
   res.flushHeaders?.();
 
-  // Enviar un ping inicial (opcional)
+  // mensaje inicial
   res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
 
-  // Guardar cliente
   const client = { id: Date.now() + Math.random(), res };
   sseClients.add(client);
 
@@ -61,14 +59,13 @@ app.get("/events", (req, res) => {
   });
 });
 
-// Función que envía updates a todos los clientes SSE
+// Función global para emitir updates
 setSendUpdate((data) => {
   const payload = typeof data === "string" ? data : JSON.stringify(data);
   for (const c of sseClients) {
     try {
       c.res.write(`data: ${payload}\n\n`);
     } catch (err) {
-      // ignorar clientes muertos
       sseClients.delete(c);
     }
   }
@@ -99,7 +96,9 @@ function verifyToken(req, res, next) {
 app.use("/api/users", userRoutes); // pública
 app.use("/api/customers", verifyToken, customerRoutes); // protegida
 app.use("/api/transactions", verifyToken, transactionRoutes); // protegida
-app.use("/api/customers", syncRoutes);
+
+// ⚠️ ANTES estaba mal montada y sin token → arreglado
+app.use("/api/sync", verifyToken, syncRoutes); // montada de forma independiente
 
 // ===============================
 // ⚠️ Ruta por defecto
@@ -108,6 +107,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
+// Manejo 404
 app.use((req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
 });
