@@ -35,6 +35,8 @@ app.use(cors({ origin: "*" }));
 app.use(express.json()); // ⚠️ Ahora sí, después del webhook
 app.use(express.static(path.join(__dirname, "public")));
 
+
+
 // SSE: clientes conectados
 const sseClients = new Set();
 
@@ -48,7 +50,7 @@ app.get("/events", (req, res) => {
   res.flushHeaders?.();
 
   // Enviar un ping inicial (opcional)
-  res.write(data: ${JSON.stringify({ type: "connected" })}\n\n);
+  res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
 
   // Guardar cliente
   const client = { id: Date.now() + Math.random(), res };
@@ -64,7 +66,7 @@ setSendUpdate((data) => {
   const payload = typeof data === "string" ? data : JSON.stringify(data);
   for (const c of sseClients) {
     try {
-      c.res.write(data: ${payload}\n\n);
+      c.res.write(`data: ${payload}\n\n`);
     } catch (err) {
       // ignorar clientes muertos
       sseClients.delete(c);
@@ -123,6 +125,6 @@ app.use((req, res) => {
   }
 
   app.listen(PORT, () => {
-    console.log(✅ Servidor corriendo en el puerto ${PORT});
+    console.log(`✅ Servidor corriendo en el puerto ${PORT}`);
   });
 })();
