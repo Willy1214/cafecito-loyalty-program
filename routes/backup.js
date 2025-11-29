@@ -8,7 +8,6 @@ const router = express.Router();
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const jwt = require("jsonwebtoken");
 
 // Path real de tu base
 const dbPath = path.resolve(__dirname, "../database/fidelidad.db");
@@ -23,40 +22,22 @@ if (!fs.existsSync(backupsDir)) {
 }
 
 // ===============================
-// 🔒 Middleware para verificar JWT
-// (opción A que elegiste)
+// 📤 DOWNLOAD (backup)
 // ===============================
-function verifyToken(req, res, next) {
-  const header = req.headers["authorization"];
-  if (!header) return res.status(403).json({ error: "Falta token" });
-
-  const token = header.replace("Bearer ", "");
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "Willy123");
-    req.user = decoded;
-    next();
-  } catch (err) {
-    return res.status(401).json({ error: "Token inválido" });
-  }
-}
-
-// ===============================
-// 📤 DOWNLOAD (backup) — Versión robusta
-// ===============================
-router.get("/download", verifyToken, (req, res) => {
+router.get("/download", (req, res) => {
   if (!fs.existsSync(dbPath)) {
     return res.status(404).json({ error: "No existe la base de datos." });
   }
 
   const now = new Date();
-
-  // 🔥 Formato seguro que RESPETA la fecha siempre
-  const fecha = now.toISOString().replace(/T/, "_").replace(/:/g, "-").replace(/\..+/, "");
-  // Ejemplo: 2025-11-28_18-52-41
+  const fecha = now
+    .toISOString()
+    .replace(/T/, "_")
+    .replace(/:/g, "-")
+    .replace(/\..+/, "");
 
   const filename = `backup-fidelidad-${fecha}.db`;
 
-  // 🛑 IMPORTANTE: poner headers manualmente (algunos navegadores lo requieren)
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.setHeader("Content-Type", "application/octet-stream");
 
@@ -64,9 +45,8 @@ router.get("/download", verifyToken, (req, res) => {
   fileStream.pipe(res);
 });
 
-
 // ===============================
-// 📥 RESTORE (subir backup)
+// 📥 RESTORE (subir backup) — Con clave secreta
 // ===============================
 const upload = multer({
   storage: multer.diskStorage({
@@ -75,15 +55,21 @@ const upload = multer({
   })
 });
 
-router.post("/restore", verifyToken, upload.single("dbfile"), (req, res) => {
+router.post("/restore", upload.single("dbfile"), (req, res) => {
   const uploaded = path.join(backupsDir, "restore.db");
+
+  // 🔐 Clave secreta (cámbiala si quieres)
+  const SECRET_KEY = "Cafecito2025Secret";
+
+  if (req.body.restoreKey !== SECRET_KEY) {
+    return res.status(403).json({ error: "Clave de restauración inválida." });
+  }
 
   if (!fs.existsSync(uploaded)) {
     return res.status(400).json({ error: "No se subió archivo." });
   }
 
   try {
-    // Reemplazar DB actual con la subida
     fs.copyFileSync(uploaded, dbPath);
 
     res.json({
