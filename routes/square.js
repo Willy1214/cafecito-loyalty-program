@@ -49,7 +49,7 @@ router.post(
       const webhookSignatureKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
 
       const endpointUrl =
-        "https://cafecito-loyalty-program-production.up.railway.app/api/square/webhook";
+        "https://cafecito-loyalty-program.onrender.com/api/square/webhook";
 
       if (!signature || !webhookSignatureKey) {
         console.error("⚠️ Faltan datos de firma o clave");
