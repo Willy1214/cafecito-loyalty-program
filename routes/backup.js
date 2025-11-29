@@ -25,7 +25,7 @@ if (!fs.existsSync(backupsDir)) {
 // 🔐 Verificar Clave Maestra
 // ===============================
 router.post("/verify-key", express.json(), (req, res) => {
-  const MASTER_KEY = process.env.MASTER_BACKUP_KEY || "Cafecito2025Secret";
+  const MASTER_KEY = process.env.JWT_SECRET;
   const { key } = req.body;
 
   if (!key) {

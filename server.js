@@ -20,8 +20,6 @@ if (!process.env.JWT_SECRET) {
 
 const SECRET_KEY = process.env.JWT_SECRET;
 
-// DEBUG (elimina esto después)
-console.log("🔐 JWT_SECRET cargado:", SECRET_KEY);
 
 // ===============================
 // 🧩 Rutas (importar antes del JSON parser)
