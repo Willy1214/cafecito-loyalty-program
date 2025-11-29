@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Backup de Base de Datos</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #111;
+      color: #fff;
+      padding: 40px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .card {
+      background: #1e1e1e;
+      padding: 25px;
+      border-radius: 10px;
+      max-width: 500px;
+      margin: auto;
+      box-shadow: 0 0 12px rgba(255,255,255,0.1);
+    }
+
+    button {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      border: none;
+      background: #008cff;
+      color: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #0a6bd4;
+    }
+
+    input[type="file"] {
+      margin-top: 10px;
+      background: #222;
+      padding: 10px;
+      border-radius: 5px;
+      width: 100%;
+      color: #aaa;
+    }
+
+    .msg {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .ok {
+      background: #005f31;
+    }
+
+    .error {
+      background: #7a0000;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📦 Backup del Sistema</h1>
+
+  <div class="card">
+    <h2>Descargar Base de Datos</h2>
+    <button onclick="descargarBackup()">📤 Descargar Backup</button>
+
+    <hr style="margin: 30px 0; border: 0.5px solid #333" />
+
+    <h2>Restaurar Base de Datos</h2>
+    <input type="file" id="backupFile" />
+
+    <button onclick="restaurarBackup()">📥 Restaurar Backup</button>
+
+    <div id="msg" class="msg"></div>
+  </div>
+
+  <script>
+    const API_URL = "/api/backup"; // Si usas subcarpetas cambia aquí
+
+    // ===============================
+    // 📤 Descargar backup
+    // ===============================
+    async function descargarBackup() {
+      const token = localStorage.getItem("token");
+      if (!token) return showMsg("No hay token de sesión.", true);
+
+      try {
+        const res = await fetch(`${API_URL}/download`, {
+          headers: { "Authorization": "Bearer " + token }
+        });
+
+        if (!res.ok) {
+          return showMsg("Error al descargar backup.", true);
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "backup-fidelidad.db";
+        a.click();
+
+        showMsg("Backup descargado correctamente.");
+      } catch (err) {
+        showMsg("No se pudo descargar el backup.", true);
+      }
+    }
+
+    // ===============================
+    // 📥 Restaurar backup
+    // ===============================
+    async function restaurarBackup() {
+      const file = document.getElementById("backupFile").files[0];
+      const token = localStorage.getItem("token");
+
+      if (!file) return showMsg("Selecciona un archivo primero.", true);
+      if (!token) return showMsg("No hay token de sesión.", true);
+
+      const formData = new FormData();
+      formData.append("dbfile", file);
+
+      try {
+        const res = await fetch(`${API_URL}/restore`, {
+          method: "POST",
+          headers: { "Authorization": "Bearer " + token },
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) return showMsg(data.error || "Error restaurando.", true);
+
+        showMsg("Base restaurada correctamente 🎉");
+      } catch (err) {
+        showMsg("Error subiendo el archivo.", true);
+      }
+    }
+
+    // ===============================
+    // Mensajes bonitos
+    // ===============================
+    function showMsg(text, isError = false) {
+      const div = document.getElementById("msg");
+      div.innerText = text;
+      div.className = "msg " + (isError ? "error" : "ok");
+      div.style.display = "block";
+    }
+  </script>
+
+</body>
+</html>
