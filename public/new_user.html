@@ -36,7 +36,7 @@
       <p id="msg" class="text-danger mt-3 text-center small"></p>
     </form>
   </div>
-
+   <script src="./resources/scripts/notifier.js"></script>
   <script>
     const isLocal =
       window.location.hostname === "localhost" ||
@@ -67,14 +67,13 @@
         const data = await res.json();
 
         if (res.ok) {
-          msg.style.color = "green";
-          msg.textContent = "Usuario creado correctamente ✔️";
+          notify("Usuario creado exitosamente", "success");
 
           setTimeout(() => {
             window.location.href = "login.html"; 
           }, 1500);
         } else {
-          msg.textContent = data.error || "Error al crear usuario.";
+          notify("Error al crear usuario", "danger");
         }
       } catch (err) {
         msg.textContent = "Error de conexión con el servidor.";
