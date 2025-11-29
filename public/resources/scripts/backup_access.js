@@ -1,43 +1,38 @@
-// resources/scripts/backup-access.js
 document.addEventListener("DOMContentLoaded", () => {
-  const backupBtn = document.getElementById("backupAccessBtn");
-  if (!backupBtn) return;
+  const btnBackups = document.querySelector("#btnBackups");
+  const keyModal = new bootstrap.Modal(document.getElementById("masterKeyModal"));
 
-  backupBtn.addEventListener("click", async (event) => {
-    event.preventDefault(); // no navegar todavía
+  btnBackups.addEventListener("click", (e) => {
+    e.preventDefault();
+    document.getElementById("masterKeyInput").value = "";
+    document.getElementById("keyError").textContent = "";
+    keyModal.show();
+  });
 
-    const key = prompt("🔐 Ingresa la clave maestra para acceder a Backups:");
+  document.getElementById("verifyKeyBtn").addEventListener("click", async () => {
+    const key = document.getElementById("masterKeyInput").value.trim();
+    const error = document.getElementById("keyError");
+
     if (!key) {
-      // canceló o vacío
+      error.textContent = "La clave no puede estar vacía.";
       return;
     }
 
-    // Construir URL base (usa la misma lógica que usas en otros scripts)
-    const API_BASE = window.API_BASE || (
-      window.location.hostname.includes("localhost")
-        ? "http://localhost:3000"
-        : window.location.origin // si frontend y backend están juntos, esto apunta al mismo host
-    );
-
     try {
-      const res = await fetch(`${API_BASE}/api/backup/verify-key`, {
+      const res = await fetch("/api/backup/verify-key", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key })
       });
 
-      if (!res.ok) {
-        // posible 401 o 400
-        const err = await res.json().catch(()=>({error: "Clave inválida"}));
-        alert("❌ Clave incorrecta: " + (err.error || "Intenta de nuevo"));
-        return;
+      if (res.ok) {
+        // Acceso concedido
+        window.location.href = "backup.html";
+      } else {
+        error.textContent = "Clave incorrecta.";
       }
-
-      // ok -> permitir entrada
-      window.location.href = "backup.html";
     } catch (err) {
-      console.error("Error verificando clave:", err);
-      alert("Error conectando con el servidor. Intenta de nuevo.");
+      error.textContent = "Error de conexión.";
     }
   });
 });

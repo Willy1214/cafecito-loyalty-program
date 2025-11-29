@@ -13,7 +13,40 @@
 
 <body class="bg-light">
 
-  <div class="container mt-5">
+  <!-- 🔒 Modal de clave maestra -->
+  <div class="modal fade" id="masterKeyModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content p-3">
+
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Acceso protegido</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+          <label class="form-label">Ingresa la clave maestra</label>
+          <input 
+            type="password" 
+            class="form-control" 
+            id="masterKeyInput"
+            placeholder="••••••••" 
+            required
+          >
+          <p id="keyError" class="text-danger mt-2 small"></p>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-primary w-100" id="verifyKeyBtn">
+            Validar acceso
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <div class="container mt-5" id="backupContent" style="display:none;">
 
     <!-- Título -->
     <div class="text-center mb-4">
@@ -53,16 +86,66 @@
     </div>
   </div>
 
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+
   <script>
     // Detectar si es local o producción
     const isLocal = 
       window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1";
 
-    // Backend correcto en Render
     const API_URL = isLocal 
       ? "http://localhost:3000/api/backup"
       : "https://cafecito-loyalty-program.onrender.com/api/backup";
+
+    // ===============================
+    // 🔐 Mostrar modal al cargar
+    // ===============================
+    document.addEventListener("DOMContentLoaded", () => {
+      const modal = new bootstrap.Modal(document.getElementById("masterKeyModal"));
+      modal.show();
+
+      document.getElementById("verifyKeyBtn").addEventListener("click", verificarClave);
+    });
+
+    // ===============================
+    // 🔐 Verificar clave maestra
+    // ===============================
+    async function verificarClave() {
+      const key = document.getElementById("masterKeyInput").value.trim();
+      const error = document.getElementById("keyError");
+
+      if (!key) {
+        error.textContent = "La clave no puede estar vacía.";
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/verify-key`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key })
+        });
+
+        if (!res.ok) {
+          error.textContent = "Clave incorrecta.";
+          return;
+        }
+
+        // ÉXITO -> mostrar contenido del panel
+        document.getElementById("backupContent").style.display = "block";
+
+        // Cerrar modal
+        bootstrap.Modal.getInstance(document.getElementById("masterKeyModal")).hide();
+
+      } catch (err) {
+        error.textContent = "Error de conexión.";
+      }
+    }
+
+
 
     // ===============================
     // 📤 Descargar backup
@@ -102,7 +185,7 @@
 
       const formData = new FormData();
       formData.append("dbfile", file);
-      formData.append("restoreKey", "Cafecito2025Secret"); // clave añadida ✔
+      formData.append("restoreKey", "Cafecito2025Secret");
 
       try {
         const res = await fetch(`${API_URL}/restore`, {
