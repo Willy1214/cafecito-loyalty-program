@@ -1,23 +1,43 @@
-// backup-access.js
+// resources/scripts/backup-access.js
 document.addEventListener("DOMContentLoaded", () => {
   const backupBtn = document.getElementById("backupAccessBtn");
-
   if (!backupBtn) return;
 
-  backupBtn.addEventListener("click", (event) => {
-    event.preventDefault(); // Evita ir a backup.html sin validar
+  backupBtn.addEventListener("click", async (event) => {
+    event.preventDefault(); // no navegar todavía
 
-    const userKey = prompt("🔐 Ingresa la clave maestra para acceder a Backups:");
+    const key = prompt("🔐 Ingresa la clave maestra para acceder a Backups:");
+    if (!key) {
+      // canceló o vacío
+      return;
+    }
 
-    if (!userKey) return;
+    // Construir URL base (usa la misma lógica que usas en otros scripts)
+    const API_BASE = window.API_BASE || (
+      window.location.hostname.includes("localhost")
+        ? "http://localhost:3000"
+        : window.location.origin // si frontend y backend están juntos, esto apunta al mismo host
+    );
 
-    // Clave que tienes en variables de entorno del servidor
-    const ALLOWED_KEY = process.env.MASTER_KEY;
+    try {
+      const res = await fetch(`${API_BASE}/api/backup/verify-key`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key })
+      });
 
-    if (userKey === ALLOWED_KEY) {
+      if (!res.ok) {
+        // posible 401 o 400
+        const err = await res.json().catch(()=>({error: "Clave inválida"}));
+        alert("❌ Clave incorrecta: " + (err.error || "Intenta de nuevo"));
+        return;
+      }
+
+      // ok -> permitir entrada
       window.location.href = "backup.html";
-    } else {
-      alert("❌ Clave incorrecta. Acceso denegado.");
+    } catch (err) {
+      console.error("Error verificando clave:", err);
+      alert("Error conectando con el servidor. Intenta de nuevo.");
     }
   });
 });
