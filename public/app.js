@@ -36,11 +36,16 @@ evtSource.onmessage = (event) => {
 async function logout() {
   const ok = await confirmDialog("¿Seguro que deseas cerrar sesión?");
   if (!ok) return;
+
   notify("Sesión cerrada correctamente", "warning");
   localStorage.removeItem("token");
   localStorage.removeItem("usuario");
+
   window.location.href = "login.html";
 }
+
+// ⭐ Conectar el botón
+document.getElementById("logoutBtn").addEventListener("click", logout);
 
 
 
