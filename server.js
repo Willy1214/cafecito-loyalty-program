@@ -11,12 +11,22 @@ require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.JWT_SECRET || "Willy123"; // ⚠️ Usa variable de entorno en producción
+
+// 🚨 NO MÁS VALOR POR DEFECTO
+if (!process.env.JWT_SECRET) {
+  console.error("❌ ERROR: No se encontró JWT_SECRET en las variables de entorno.");
+  process.exit(1);
+}
+
+const SECRET_KEY = process.env.JWT_SECRET;
+
+// DEBUG (elimina esto después)
+console.log("🔐 JWT_SECRET cargado:", SECRET_KEY);
 
 // ===============================
-// 🧩 Rutas (importar antes de middlewares que parsean JSON)
+// 🧩 Rutas (importar antes del JSON parser)
 // ===============================
-const squareWebhook = require("./routes/square"); // ⚠️ Cargar antes del JSON parser
+const squareWebhook = require("./routes/square");
 const userRoutes = require("./routes/users");
 const customerRoutes = require("./routes/customers");
 const transactionRoutes = require("./routes/transactions");
@@ -24,54 +34,13 @@ const backupRoutes = require("./routes/backup");
 const { router: syncRoutes, syncClientes } = require("./routes/syncCustomers");
 
 // ===============================
-// 🪝 Ruta especial: Webhook de Square
-// (Debe ir antes del express.json())
+// 🪝 Webhook antes del JSON parser
 // ===============================
 app.use("/api/square", squareWebhook);
 
-// ===============================
-// 🧩 Middlewares globales
-// ===============================
 app.use(cors({ origin: "*" }));
-app.use(express.json()); // ⚠️ Ahora sí, después del webhook
+app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
-
-// SSE: clientes conectados
-const sseClients = new Set();
-
-app.get("/events", (req, res) => {
-  // Cabeceras SSE
-  res.set({
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-  });
-  res.flushHeaders?.();
-
-  // Enviar un ping inicial (opcional)
-  res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
-
-  // Guardar cliente
-  const client = { id: Date.now() + Math.random(), res };
-  sseClients.add(client);
-
-  req.on("close", () => {
-    sseClients.delete(client);
-  });
-});
-
-// Función que envía updates a todos los clientes SSE
-setSendUpdate((data) => {
-  const payload = typeof data === "string" ? data : JSON.stringify(data);
-  for (const c of sseClients) {
-    try {
-      c.res.write(`data: ${payload}\n\n`);
-    } catch (err) {
-      // ignorar clientes muertos
-      sseClients.delete(c);
-    }
-  }
-});
 
 // ===============================
 // 🔒 Middleware de autenticación
@@ -95,9 +64,9 @@ function verifyToken(req, res, next) {
 // ===============================
 // 🛠️ Rutas principales
 // ===============================
-app.use("/api/users", userRoutes); // pública
-app.use("/api/customers", verifyToken, customerRoutes); // protegida
-app.use("/api/transactions", verifyToken, transactionRoutes); // protegida
+app.use("/api/users", userRoutes);
+app.use("/api/customers", verifyToken, customerRoutes);
+app.use("/api/transactions", verifyToken, transactionRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/customers", syncRoutes);
 
@@ -113,7 +82,7 @@ app.use((req, res) => {
 });
 
 // ===============================
-// 🚀 Iniciar servidor + sincronización automática
+// 🚀 Iniciar servidor + sincronización
 // ===============================
 (async () => {
   console.log("🔄 Sincronizando clientes existentes desde Square...");
