@@ -46,7 +46,21 @@
       >
 
       <button id="loginBtn" class="btn btn-primary w-100">Entrar</button>
-      <button id="createUserBtn" class="btn btn-outline-secondary w-100 mt-2">Crear usuario</button>
+
+      <button 
+        id="createUserBtn" 
+        class="btn btn-outline-secondary w-100 mt-2"
+      >
+        Crear usuario
+      </button>
+
+      <!-- 🌟 Nuevo botón para backups -->
+      <a 
+        href="backup.html" 
+        class="btn btn-outline-dark w-100 mt-3"
+      >
+        📦 Cargar copia de seguridad
+      </a>
 
       <p id="msg" class="text-center mt-3 text-danger small"></p>
     </div>
@@ -100,9 +114,9 @@
     });
 
     // 👤 Crear usuario admin
-      document.getElementById("createUserBtn").addEventListener("click", () => {
-        window.location.href = "new_user.html";
-      });
+    document.getElementById("createUserBtn").addEventListener("click", () => {
+      window.location.href = "new_user.html";
+    });
   </script>
 </body>
 </html>
