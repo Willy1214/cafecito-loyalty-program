@@ -41,38 +41,27 @@ function verifyToken(req, res, next) {
 }
 
 // ===============================
-// 📤 DOWNLOAD (backup)
+// 📤 DOWNLOAD (backup) — Versión robusta
 // ===============================
 router.get("/download", verifyToken, (req, res) => {
   if (!fs.existsSync(dbPath)) {
     return res.status(404).json({ error: "No existe la base de datos." });
   }
 
-  // 🕒 Fecha bonita
   const now = new Date();
 
-  const fecha =
-    now.getFullYear() +
-    "-" +
-    String(now.getMonth() + 1).padStart(2, "0") +
-    "-" +
-    String(now.getDate()).padStart(2, "0");
+  // 🔥 Formato seguro que RESPETA la fecha siempre
+  const fecha = now.toISOString().replace(/T/, "_").replace(/:/g, "-").replace(/\..+/, "");
+  // Ejemplo: 2025-11-28_18-52-41
 
-  const hora =
-    String(now.getHours()).padStart(2, "0") +
-    "-" +
-    String(now.getMinutes()).padStart(2, "0") +
-    "-" +
-    String(now.getSeconds()).padStart(2, "0");
+  const filename = `backup-fidelidad-${fecha}.db`;
 
-  const filename = `backup-fidelidad-${fecha}_${hora}.db`;
+  // 🛑 IMPORTANTE: poner headers manualmente (algunos navegadores lo requieren)
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Type", "application/octet-stream");
 
-  res.download(dbPath, filename, (err) => {
-    if (err) {
-      console.error("❌ Error enviando backup:", err);
-      return res.status(500).json({ error: "Error enviando el archivo." });
-    }
-  });
+  const fileStream = fs.createReadStream(dbPath);
+  fileStream.pipe(res);
 });
 
 
