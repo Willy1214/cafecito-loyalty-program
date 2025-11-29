@@ -41,7 +41,7 @@ function verifyToken(req, res, next) {
 }
 
 // ===============================
-// 📤 DOWNLOAD (backup) — versión final
+// 📤 DOWNLOAD (backup) — Versión robusta
 // ===============================
 router.get("/download", verifyToken, (req, res) => {
   if (!fs.existsSync(dbPath)) {
@@ -49,23 +49,21 @@ router.get("/download", verifyToken, (req, res) => {
   }
 
   const now = new Date();
+
+  // 🔥 Formato seguro que RESPETA la fecha siempre
   const fecha = now.toISOString().replace(/T/, "_").replace(/:/g, "-").replace(/\..+/, "");
+  // Ejemplo: 2025-11-28_18-52-41
+
   const filename = `backup-fidelidad-${fecha}.db`;
 
-  // Exponer header para que fetch en el navegador pueda leerlo (CORS)
-  res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
-
-  // Forzar descarga con nombre
+  // 🛑 IMPORTANTE: poner headers manualmente (algunos navegadores lo requieren)
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.setHeader("Content-Type", "application/octet-stream");
 
-  const stream = fs.createReadStream(dbPath);
-  stream.on("error", (err) => {
-    console.error("Error leyendo DB para descarga:", err);
-    res.sendStatus(500);
-  });
-  stream.pipe(res);
+  const fileStream = fs.createReadStream(dbPath);
+  fileStream.pipe(res);
 });
+
 
 // ===============================
 // 📥 RESTORE (subir backup)
