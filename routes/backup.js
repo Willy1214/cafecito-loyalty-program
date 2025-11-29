@@ -22,6 +22,24 @@ if (!fs.existsSync(backupsDir)) {
 }
 
 // ===============================
+// 🔐 Verificar Clave Maestra
+// ===============================
+router.post("/verify-key", express.json(), (req, res) => {
+  const MASTER_KEY = process.env.MASTER_BACKUP_KEY || "Cafecito2025Secret";
+  const { key } = req.body;
+
+  if (!key) {
+    return res.status(400).json({ error: "Clave requerida." });
+  }
+
+  if (key !== MASTER_KEY) {
+    return res.status(401).json({ error: "Clave incorrecta." });
+  }
+
+  res.json({ ok: true });
+});
+
+// ===============================
 // 📤 DOWNLOAD (backup)
 // ===============================
 router.get("/download", (req, res) => {
@@ -30,24 +48,17 @@ router.get("/download", (req, res) => {
   }
 
   const now = new Date();
-  const fecha = now
-    .toISOString()
-    .replace(/T/, "_")
-    .replace(/:/g, "-")
-    .replace(/\..+/, "");
-
+  const fecha = now.toISOString().replace(/T/, "_").replace(/:/g, "-").replace(/\..+/, "");
   const filename = `backup-fidelidad-${fecha}.db`;
 
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.setHeader("Content-Type", "application/octet-stream");
 
-  const fileStream = fs.createReadStream(dbPath);
-  fileStream.pipe(res);
+  fs.createReadStream(dbPath).pipe(res);
 });
 
 // ===============================
 // 📥 RESTORE (subir backup)
-// SIN TOKEN – solo clave de seguridad
 // ===============================
 const upload = multer({
   storage: multer.diskStorage({
@@ -59,8 +70,7 @@ const upload = multer({
 router.post("/restore", upload.single("dbfile"), (req, res) => {
   const uploaded = path.join(backupsDir, "restore.db");
 
-  // 🔐 Clave secreta (debe coincidir con frontend)
-  const SECRET_KEY = "Cafecito2025Secret";
+  const SECRET_KEY = process.env.MASTER_BACKUP_KEY || "Cafecito2025Secret";
 
   if (req.body.restoreKey !== SECRET_KEY) {
     return res.status(403).json({ error: "Clave de restauración inválida." });
@@ -72,11 +82,7 @@ router.post("/restore", upload.single("dbfile"), (req, res) => {
 
   try {
     fs.copyFileSync(uploaded, dbPath);
-
-    res.json({
-      ok: true,
-      message: "Base de datos restaurada correctamente."
-    });
+    res.json({ ok: true, message: "Base de datos restaurada correctamente." });
   } catch (err) {
     console.error("❌ Error restaurando DB:", err);
     res.status(500).json({ error: "Error restaurando la base de datos." });
