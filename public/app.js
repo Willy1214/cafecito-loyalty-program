@@ -7,7 +7,7 @@ const isLocal =
 
 const API_BASE = isLocal
   ? "http://localhost:3000/api/customers"
-  : "https://cafecito-loyalty.onrender.com/api/customers";
+  : "https://cafecito-loyalty-program.onrender.com/api/customers";
 
 const token = localStorage.getItem("token");
 
