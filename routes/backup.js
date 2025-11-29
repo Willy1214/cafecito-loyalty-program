@@ -46,7 +46,8 @@ router.get("/download", (req, res) => {
 });
 
 // ===============================
-// 📥 RESTORE (subir backup) — Con clave secreta
+// 📥 RESTORE (subir backup)
+// SIN TOKEN – solo clave de seguridad
 // ===============================
 const upload = multer({
   storage: multer.diskStorage({
@@ -58,7 +59,7 @@ const upload = multer({
 router.post("/restore", upload.single("dbfile"), (req, res) => {
   const uploaded = path.join(backupsDir, "restore.db");
 
-  // 🔐 Clave secreta (cámbiala si quieres)
+  // 🔐 Clave secreta (debe coincidir con frontend)
   const SECRET_KEY = "Cafecito2025Secret";
 
   if (req.body.restoreKey !== SECRET_KEY) {

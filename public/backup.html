@@ -59,11 +59,10 @@
       window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1";
 
-    // Tu backend en Render
+    // Backend correcto en Render
     const API_URL = isLocal 
       ? "http://localhost:3000/api/backup"
-      : "https://cafecito-loyalty.onrender.com/api/backup";
-
+      : "https://cafecito-loyalty-program.onrender.com/api/backup";
 
     // ===============================
     // 📤 Descargar backup
@@ -77,9 +76,7 @@
           headers: { "Authorization": "Bearer " + token }
         });
 
-        if (!res.ok) {
-          return showMsg("Error al descargar backup.", true);
-        }
+        if (!res.ok) return showMsg("Error al descargar backup.", true);
 
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
@@ -97,7 +94,6 @@
 
     // ===============================
     // 📥 Restaurar backup
-    // (IMPORTANTE: ya no pide token)
     // ===============================
     async function restaurarBackup() {
       const file = document.getElementById("backupFile").files[0];
@@ -106,6 +102,7 @@
 
       const formData = new FormData();
       formData.append("dbfile", file);
+      formData.append("restoreKey", "Cafecito2025Secret"); // clave añadida ✔
 
       try {
         const res = await fetch(`${API_URL}/restore`, {
@@ -124,7 +121,7 @@
     }
 
     // ===============================
-    // Mensajes bonitos (Bootstrap)
+    // Mensajes Bootstrap
     // ===============================
     function showMsg(text, isError = false) {
       const div = document.getElementById("msg");
