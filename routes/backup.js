@@ -48,7 +48,24 @@ router.get("/download", verifyToken, (req, res) => {
     return res.status(404).json({ error: "No existe la base de datos." });
   }
 
-  const filename = `backup-fidelidad-${Date.now()}.db`;
+  // 🕒 Fecha bonita
+  const now = new Date();
+
+  const fecha =
+    now.getFullYear() +
+    "-" +
+    String(now.getMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(now.getDate()).padStart(2, "0");
+
+  const hora =
+    String(now.getHours()).padStart(2, "0") +
+    "-" +
+    String(now.getMinutes()).padStart(2, "0") +
+    "-" +
+    String(now.getSeconds()).padStart(2, "0");
+
+  const filename = `backup-fidelidad-${fecha}_${hora}.db`;
 
   res.download(dbPath, filename, (err) => {
     if (err) {
@@ -57,6 +74,7 @@ router.get("/download", verifyToken, (req, res) => {
     }
   });
 });
+
 
 // ===============================
 // 📥 RESTORE (subir backup)
