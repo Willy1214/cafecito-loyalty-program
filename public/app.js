@@ -40,10 +40,8 @@ async function logout() {
   notify("Sesión cerrada correctamente", "warning");
   localStorage.removeItem("token");
   localStorage.removeItem("usuario");
-
   window.location.href = "login.html";
 }
-
 // ⭐ Conectar el botón
 document.getElementById("logoutBtn").addEventListener("click", logout);
 
@@ -52,7 +50,7 @@ document.getElementById("logoutBtn").addEventListener("click", logout);
 // =======================
 // 👉 Lista global que usaremos para filtrar
 // =======================
-let customers = []; // 🔥 Nuevo
+let customers = []; 
 
 // =======================
 // ➕ Registrar nuevo cliente
@@ -60,7 +58,6 @@ let customers = []; // 🔥 Nuevo
 document.getElementById("addBtn").addEventListener("click", async () => {
   const name = document.getElementById("name").value.trim();
   if (!name) return notify("Por favor ingresa un nombre.", "error");
-
   try {
     const res = await fetch(`${API_BASE}/register`, {
       method: "POST",
@@ -113,14 +110,13 @@ async function loadCustomers() {
 }
 
 // =======================
-// 🖼 Renderizar tabla (con soporte para filtrados)
+// Renderizar tabla (con soporte para filtrados)
 // =======================
 function renderCustomers(list) {
   const table = document.getElementById("customerTable");
-
   if (!list || list.length === 0) {
     table.innerHTML = `
-      <tr><td colspan="4" class="text-center text-muted">Sin resultados 😔</td></tr>`;
+      <tr><td colspan="4" class="text-center text-muted">SSin clientes registados</td></tr>`;
     return;
   }
 
@@ -195,8 +191,12 @@ async function redeemPoints(id, puntosActuales) {
   if (puntosActuales < 10)
     return notify("El cliente no tiene suficientes puntos (mínimo 10).", "error");
 
-  const producto = prompt("🛍️ Producto del canje:");
-
+  const producto = await inputDialog(
+    "Introduce el postre a canjear:",  // Mensaje
+    "",                 // Placeholder (opcional)
+    ""                                // Valor por defecto (opcional)
+  );
+  
   if (!producto || producto.trim() === "") {
     notify("Debes ingresar un nombre de producto.", "error");
     return;
