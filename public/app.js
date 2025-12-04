@@ -116,7 +116,7 @@ function renderCustomers(list) {
   const table = document.getElementById("customerTable");
   if (!list || list.length === 0) {
     table.innerHTML = `
-      <tr><td colspan="4" class="text-center text-muted">SSin clientes registados</td></tr>`;
+      <tr><td colspan="4" class="text-center text-muted">No se encontraron clientes.</td></tr>`;
     return;
   }
 
@@ -196,7 +196,7 @@ async function redeemPoints(id, puntosActuales) {
     "",                 // Placeholder (opcional)
     ""                                // Valor por defecto (opcional)
   );
-  
+
   if (!producto || producto.trim() === "") {
     notify("Debes ingresar un nombre de producto.", "error");
     return;

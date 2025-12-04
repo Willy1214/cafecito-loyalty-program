@@ -1,177 +1,701 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <title>Backup de Base de Datos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backup de Base de Datos | Sistema de Fidelidad</title>
 
-  <!-- Bootstrap -->
+  <!-- Bootstrap 5 -->
   <link 
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
     rel="stylesheet"
   >
+  
+  <!-- Bootstrap Icons -->
+  <link 
+    rel="stylesheet" 
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"
+  >
+  
+  <style>
+    :root {
+      --primary-color: #4361ee;
+      --success-color: #2ecc71;
+      --danger-color: #e74c3c;
+      --warning-color: #f39c12;
+    }
+    
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    
+    .card-3d {
+      transform-style: preserve-3d;
+      perspective: 1000px;
+    }
+    
+    .card-3d:hover {
+      transform: translateY(-5px) rotateX(2deg);
+      transition: all 0.3s ease;
+    }
+    
+    .icon-lg {
+      font-size: 3rem;
+    }
+    
+    .file-input-custom {
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    
+    .file-input-custom input[type="file"] {
+      position: absolute;
+      top: 0;
+      right: 0;
+      min-width: 100%;
+      min-height: 100%;
+      font-size: 100px;
+      text-align: right;
+      filter: alpha(opacity=0);
+      opacity: 0;
+      outline: none;
+      background: white;
+      cursor: pointer;
+      display: block;
+    }
+    
+    .password-toggle {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #6c757d;
+      cursor: pointer;
+      z-index: 5;
+    }
+    
+    .password-toggle:hover {
+      color: var(--primary-color);
+    }
+    
+    .btn-lg-responsive {
+      padding: 0.75rem 1.5rem;
+      font-size: 1.1rem;
+    }
+    
+    @media (max-width: 768px) {
+      .btn-lg-responsive {
+        padding: 0.65rem 1.25rem;
+        font-size: 1rem;
+      }
+      
+      .icon-lg {
+        font-size: 2.5rem;
+      }
+      
+      .card {
+        margin: 0 10px;
+      }
+    }
+    
+    @media (max-width: 576px) {
+      .container {
+        padding-left: 15px;
+        padding-right: 15px;
+      }
+      
+      .modal-dialog {
+        margin: 10px;
+      }
+    }
+    
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .shake {
+      animation: shake 0.5s;
+    }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    
+    .progress-thin {
+      height: 3px;
+    }
+    
+    .backup-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 2.5rem;
+    }
+    
+    .download-icon {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .restore-icon {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+    }
+    
+    .btn-gradient {
+      background: linear-gradient(135deg, var(--primary-color) 0%, #3a0ca3 100%);
+      border: none;
+      color: white;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-gradient:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
+    }
+    
+    .btn-success-gradient {
+      background: linear-gradient(135deg, var(--success-color) 0%, #27ae60 100%);
+      border: none;
+      color: white;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-success-gradient:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 7px 14px rgba(46, 204, 113, 0.2), 0 3px 6px rgba(0, 0, 0, 0.08);
+    }
+  </style>
 </head>
 
-<body class="bg-light">
-
-  <!-- 🔒 Modal de clave maestra -->
-  <div class="modal fade" id="masterKeyModal" tabindex="-1">
+<body class="d-flex flex-column min-vh-100">
+  
+  <!-- 🔒 Modal de Autenticación -->
+  <div class="modal fade" id="masterKeyModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content p-3">
-
-        <div class="modal-header">
-          <h5 class="modal-title fw-bold">Acceso protegido</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      <div class="modal-content border-0 shadow-lg">
+        
+        <!-- Header del Modal -->
+        <div class="modal-header border-0 bg-primary text-white rounded-top">
+          <div class="d-flex align-items-center w-100">
+            <i class="bi bi-shield-lock-fill me-3 fs-4"></i>
+            <div>
+              <h5 class="modal-title mb-0 fw-bold">Acceso Seguro</h5>
+              <p class="mb-0 small opacity-75">Panel de Administración de Backups</p>
+            </div>
+          </div>
         </div>
-
-        <div class="modal-body">
-          <label class="form-label">Ingresa la clave maestra</label>
-          <input 
-            type="password" 
-            class="form-control" 
-            id="masterKeyInput"
-            placeholder="••••••••" 
-            required
-          >
-          <p id="keyError" class="text-danger mt-2 small"></p>
+        
+        <!-- Body del Modal -->
+        <div class="modal-body p-4">
+          <div class="text-center mb-4">
+            <div class="backup-icon download-icon">
+              <i class="bi bi-database"></i>
+            </div>
+            <p class="text-muted mb-0">Esta sección está protegida por seguridad</p>
+          </div>
+          
+          <div class="mb-4">
+            <label for="masterKeyInput" class="form-label fw-semibold">
+              <i class="bi bi-key me-2"></i>Clave Maestra
+            </label>
+            <div class="position-relative">
+              <input 
+                type="password" 
+                class="form-control form-control-lg ps-4" 
+                id="masterKeyInput"
+                placeholder="Ingresa tu clave de seguridad" 
+                required
+                autocomplete="current-password"
+              >
+              <button type="button" class="password-toggle" id="togglePassword">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
+            <div class="form-text">
+              <i class="bi bi-info-circle me-1"></i>Usa la clave maestra proporcionada por el administrador
+            </div>
+          </div>
+          
+          <!-- Mensaje de error -->
+          <div id="keyError" class="alert alert-danger d-none" role="alert">
+            <div class="d-flex align-items-center">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <span id="errorText"></span>
+            </div>
+          </div>
+          
+          <!-- Indicador de carga -->
+          <div id="loadingIndicator" class="d-none">
+            <div class="d-flex align-items-center justify-content-center">
+              <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+              <span class="text-muted">Verificando credenciales...</span>
+            </div>
+          </div>
         </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-primary w-100" id="verifyKeyBtn">
-            Validar acceso
-          </button>
+        
+        <!-- Footer del Modal -->
+        <div class="modal-footer border-0">
+          <div class="w-100">
+            <button 
+              class="btn btn-primary btn-lg w-100 fw-semibold" 
+              id="verifyKeyBtn"
+              onclick="verificarClave()"
+            >
+              <i class="bi bi-unlock me-2"></i>Acceder al Panel
+            </button>
+            <p class="text-center text-muted mt-3 small">
+              <i class="bi bi-shield-check me-1"></i>Tus datos están protegidos con encriptación
+            </p>
+          </div>
         </div>
-
+        
       </div>
     </div>
   </div>
 
-
-  <div class="container mt-5" id="backupContent" style="display:none;">
-
-    <!-- Título -->
-    <div class="text-center mb-4">
-      <h1 class="fw-bold">Backup del Sistema</h1>
-      <p class="text-muted">Administra las copias de seguridad de la base de datos</p>
+  <!-- 🎯 Contenido Principal (inicialmente oculto) -->
+  <main class="container my-5 flex-grow-1" id="backupContent" style="display:none;">
+    
+    <!-- Header -->
+    <div class="text-center mb-5 fade-in">
+      <div class="mb-4">
+        <i class="bi bi-database-check icon-lg text-primary mb-3"></i>
+        <h1 class="fw-bold text-dark mb-2">Gestión de Backups</h1>
+        <p class="text-muted lead">Administra las copias de seguridad de tu base de datos de forma segura</p>
+      </div>
     </div>
-
-    <div class="card shadow p-4 mx-auto" style="max-width: 600px;">
-
-      <!-- Descargar -->
-      <h4 class="mb-3">📤 Descargar Base de Datos</h4>
-      <button class="btn btn-primary w-100 mb-4" onclick="descargarBackup()">
-        Descargar Backup
-      </button>
-
-      <hr class="my-4">
-
-      <!-- Restaurar -->
-      <h4 class="mb-3">📥 Restaurar Base de Datos</h4>
-      <input 
-        type="file" 
-        id="backupFile"
-        class="form-control mb-3"
-      >
-
-      <button class="btn btn-success w-100" onclick="restaurarBackup()">
-        Restaurar Backup
-      </button>
-
-      <!-- Mensajes -->
-      <div
-        id="msg"
-        class="alert mt-4 d-none"
-        role="alert"
-      ></div>
-
+    
+    <!-- Tarjeta Principal -->
+    <div class="row justify-content-center">
+      <div class="col-lg-8 col-xl-6">
+        <div class="card border-0 shadow-lg card-3d">
+          <div class="card-body p-4 p-md-5">
+            
+            <!-- Sección de Descarga -->
+            <div class="mb-5">
+              <div class="d-flex align-items-center mb-4">
+                <div class="me-3">
+                  <i class="bi bi-cloud-download-fill text-primary fs-3"></i>
+                </div>
+                <div>
+                  <h3 class="fw-bold mb-1">Descargar Backup</h3>
+                  <p class="text-muted mb-0">Crea una copia de seguridad de toda la base de datos</p>
+                </div>
+              </div>
+              
+              <div class="alert alert-info border-0 mb-4">
+                <div class="d-flex align-items-center">
+                  <i class="bi bi-info-circle-fill me-3 fs-5"></i>
+                  <div>
+                    <p class="mb-1 fw-semibold">Información importante</p>
+                    <p class="mb-0 small">El backup incluye todos los datos del sistema: clientes, puntos y transacciones</p>
+                  </div>
+                </div>
+              </div>
+              
+              <button 
+                class="btn btn-gradient btn-lg w-100 fw-semibold btn-lg-responsive" 
+                onclick="descargarBackup()"
+                id="downloadBtn"
+              >
+                <i class="bi bi-download me-2"></i>Generar y Descargar Backup
+              </button>
+              
+              <div class="progress mt-3 d-none" id="downloadProgress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+            
+            <hr class="my-4">
+            
+            <!-- Sección de Restauración -->
+            <div>
+              <div class="d-flex align-items-center mb-4">
+                <div class="me-3">
+                  <i class="bi bi-cloud-upload-fill text-success fs-3"></i>
+                </div>
+                <div>
+                  <h3 class="fw-bold mb-1">Restaurar Backup</h3>
+                  <p class="text-muted mb-0">Recupera la base de datos desde un archivo de respaldo</p>
+                </div>
+              </div>
+              
+              <div class="alert alert-warning border-0 mb-4">
+                <div class="d-flex align-items-center">
+                  <i class="bi bi-exclamation-triangle-fill me-3 fs-5"></i>
+                  <div>
+                    <p class="mb-1 fw-semibold">¡Atención!</p>
+                    <p class="mb-0 small">Esta acción sobrescribirá todos los datos actuales. Asegúrate de tener un backup reciente antes de continuar.</p>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Input de archivo mejorado -->
+              <div class="file-input-custom mb-4">
+                <label class="d-block">
+                  <div class="border-2 border-dashed rounded-3 p-4 text-center cursor-pointer bg-light">
+                    <i class="bi bi-file-earmark-arrow-up text-muted fs-1 d-block mb-2"></i>
+                    <span class="d-block fw-semibold">Seleccionar archivo de backup</span>
+                    <span class="d-block text-muted small mt-1">Haz clic aquí o arrastra un archivo .db</span>
+                    <span class="d-block text-muted smaller mt-1" id="fileName">Ningún archivo seleccionado</span>
+                  </div>
+                  <input 
+                    type="file" 
+                    id="backupFile"
+                    class="form-control d-none"
+                    accept=".db,.sqlite,.sqlite3"
+                  >
+                </label>
+              </div>
+              
+              <button 
+                class="btn btn-success-gradient btn-lg w-100 fw-semibold btn-lg-responsive" 
+                onclick="restaurarBackup()"
+                id="restoreBtn"
+                disabled
+              >
+                <i class="bi bi-arrow-clockwise me-2"></i>Restaurar Base de Datos
+              </button>
+              
+              <div class="progress mt-3 d-none" id="restoreProgress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%"></div>
+              </div>
+            </div>
+            
+            <!-- Mensajes del sistema -->
+            <div id="msg" class="mt-4"></div>
+            
+          </div>
+          
+          <!-- Footer de la tarjeta -->
+          <div class="card-footer bg-transparent border-0 text-center py-3">
+            <p class="text-muted small mb-0">
+              <i class="bi bi-clock-history me-1"></i>Última actualización: <span id="lastBackupTime">--</span>
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+    
+    <!-- Información adicional -->
+    <div class="row mt-5">
+      <div class="col-md-4 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body text-center p-4">
+            <i class="bi bi-shield-check text-primary fs-2 mb-3 d-block"></i>
+            <h5 class="fw-bold">Seguro</h5>
+            <p class="text-muted small">Todos los backups están encriptados y protegidos con tu clave maestra.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-4 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body text-center p-4">
+            <i class="bi bi-clock-history text-success fs-2 mb-3 d-block"></i>
+            <h5 class="fw-bold">Actualizado</h5>
+            <p class="text-muted small">Mantén copias recientes para garantizar la recuperación de datos.</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-4 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body text-center p-4">
+            <i class="bi bi-cloud-arrow-down text-warning fs-2 mb-3 d-block"></i>
+            <h5 class="fw-bold">Accesible</h5>
+            <p class="text-muted small">Descarga tus backups en cualquier momento desde cualquier dispositivo.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </main>
 
-  <!-- Bootstrap JS -->
+  <!-- Footer -->
+  <footer class="bg-dark text-white py-4 mt-5">
+    <div class="container">
+      <div class="row align-items-center">
+        <div class="col-md-6 text-center text-md-end">
+          <p class="mb-0">
+            <span class="badge bg-success me-2">Conectado</span>
+            <span id="connectionStatus" class="small"></span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Bootstrap JS Bundle -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-
+  <!-- Script principal -->
   <script>
     // Detectar si es local o producción
     const isLocal = 
       window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname === "";
 
     const API_URL = isLocal 
       ? "http://localhost:3000/api/backup"
       : "https://cafecito-loyalty-program.onrender.com/api/backup";
 
     // ===============================
-    // 🔐 Mostrar modal al cargar
+    // 🔐 Inicialización
     // ===============================
-    document.addEventListener("DOMContentLoaded", () => {
-      const modal = new bootstrap.Modal(document.getElementById("masterKeyModal"));
+    document.addEventListener("DOMContentLoaded", function() {
+      // Mostrar modal de autenticación
+      const modal = new bootstrap.Modal(document.getElementById("masterKeyModal"), {
+        keyboard: false,
+        backdrop: 'static'
+      });
       modal.show();
-
-      document.getElementById("verifyKeyBtn").addEventListener("click", verificarClave);
+      
+      // Configurar eventos
+      setupEventListeners();
+      
+      // Mostrar estado de conexión
+      updateConnectionStatus();
+      
+      // Actualizar periodicamente el estado
+      setInterval(updateConnectionStatus, 30000);
     });
+
+    // ===============================
+    // 🎯 Configurar Event Listeners
+    // ===============================
+    function setupEventListeners() {
+      // Toggle para mostrar/ocultar contraseña
+      const togglePassword = document.getElementById('togglePassword');
+      const passwordInput = document.getElementById('masterKeyInput');
+      
+      togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        this.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+      });
+      
+      // Permitir Enter para enviar clave
+      passwordInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          verificarClave();
+        }
+      });
+      
+      // Mostrar nombre del archivo seleccionado
+      const fileInput = document.getElementById('backupFile');
+      const fileNameSpan = document.getElementById('fileName');
+      const restoreBtn = document.getElementById('restoreBtn');
+      
+      fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+          fileNameSpan.textContent = this.files[0].name;
+          fileNameSpan.classList.add('text-success', 'fw-semibold');
+          restoreBtn.disabled = false;
+        } else {
+          fileNameSpan.textContent = 'Ningún archivo seleccionado';
+          fileNameSpan.classList.remove('text-success', 'fw-semibold');
+          restoreBtn.disabled = true;
+        }
+      });
+      
+      // Arrastrar y soltar archivos
+      const dropZone = fileInput.parentElement;
+      
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+      });
+      
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, highlight, false);
+      });
+      
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, unhighlight, false);
+      });
+      
+      function highlight() {
+        dropZone.classList.add('bg-primary', 'bg-opacity-10');
+      }
+      
+      function unhighlight() {
+        dropZone.classList.remove('bg-primary', 'bg-opacity-10');
+      }
+      
+      dropZone.addEventListener('drop', handleDrop, false);
+      
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+          fileInput.files = files;
+          fileInput.dispatchEvent(new Event('change'));
+        }
+      }
+    }
 
     // ===============================
     // 🔐 Verificar clave maestra
     // ===============================
     async function verificarClave() {
       const key = document.getElementById("masterKeyInput").value.trim();
-      const error = document.getElementById("keyError");
-
+      const errorDiv = document.getElementById("keyError");
+      const errorText = document.getElementById("errorText");
+      const loadingIndicator = document.getElementById("loadingIndicator");
+      const verifyBtn = document.getElementById("verifyKeyBtn");
+      
+      // Resetear estado
+      errorDiv.classList.add('d-none');
+      passwordInput = document.getElementById("masterKeyInput");
+      
       if (!key) {
-        error.textContent = "La clave no puede estar vacía.";
+        errorText.textContent = "La clave no puede estar vacía.";
+        errorDiv.classList.remove('d-none');
+        passwordInput.classList.add('shake');
+        setTimeout(() => passwordInput.classList.remove('shake'), 500);
+        passwordInput.focus();
         return;
       }
-
+      
+      // Mostrar carga
+      verifyBtn.disabled = true;
+      verifyBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Verificando...';
+      loadingIndicator.classList.remove('d-none');
+      
       try {
         const res = await fetch(`${API_URL}/verify-key`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache"
+          },
           body: JSON.stringify({ key })
         });
 
         if (!res.ok) {
-          error.textContent = "Clave incorrecta.";
-          return;
+          throw new Error('Clave incorrecta');
         }
 
         // ÉXITO -> mostrar contenido del panel
-        document.getElementById("backupContent").style.display = "block";
-
-        // Cerrar modal
-        bootstrap.Modal.getInstance(document.getElementById("masterKeyModal")).hide();
-
+        const content = document.getElementById("backupContent");
+        content.style.display = "block";
+        content.classList.add('fade-in');
+        
+        // Ocultar modal con animación
+        const modal = bootstrap.Modal.getInstance(document.getElementById("masterKeyModal"));
+        modal.hide();
+        
+        // Actualizar hora del último backup
+        updateLastBackupTime();
+        
+        // Mostrar mensaje de éxito
+        showMsg("✅ Autenticación exitosa. Bienvenido al panel de backups.", false);
+        
       } catch (err) {
-        error.textContent = "Error de conexión.";
+        // Mostrar error
+        errorText.textContent = err.message || "Error de conexión. Verifica tu internet e intenta nuevamente.";
+        errorDiv.classList.remove('d-none');
+        passwordInput.classList.add('shake');
+        setTimeout(() => passwordInput.classList.remove('shake'), 500);
+        passwordInput.focus();
+        passwordInput.select();
+        
+      } finally {
+        // Restaurar botón
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = '<i class="bi bi-unlock me-2"></i>Acceder al Panel';
+        loadingIndicator.classList.add('d-none');
       }
     }
-
-
 
     // ===============================
     // 📤 Descargar backup
     // ===============================
     async function descargarBackup() {
       const token = localStorage.getItem("token");
-      if (!token) return showMsg("No hay token de sesión.", true);
-
+      const downloadBtn = document.getElementById("downloadBtn");
+      const progressBar = document.getElementById("downloadProgress");
+      const progressFill = progressBar.querySelector('.progress-bar');
+      
+      if (!token) {
+        showMsg("❌ No hay sesión activa. Por favor, inicia sesión nuevamente.", true);
+        return;
+      }
+      
+      // Mostrar indicador de progreso
+      downloadBtn.disabled = true;
+      downloadBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Generando backup...';
+      progressBar.classList.remove('d-none');
+      progressFill.style.width = '30%';
+      
       try {
         const res = await fetch(`${API_URL}/download`, {
-          headers: { "Authorization": "Bearer " + token }
+          headers: { 
+            "Authorization": "Bearer " + token,
+            "Cache-Control": "no-cache"
+          }
         });
 
-        if (!res.ok) return showMsg("Error al descargar backup.", true);
-
+        if (!res.ok) {
+          throw new Error('Error al generar el backup');
+        }
+        
+        progressFill.style.width = '70%';
+        
         const blob = await res.blob();
+        progressFill.style.width = '100%';
+        
+        // Crear y descargar archivo
         const url = window.URL.createObjectURL(blob);
-
         const a = document.createElement("a");
         a.href = url;
-        a.download = "backup-fidelidad.db";
+        a.download = `backup-fidelidad-${new Date().toISOString().split('T')[0]}.db`;
+        document.body.appendChild(a);
         a.click();
-
-        showMsg("Backup descargado correctamente.");
+        document.body.removeChild(a);
+        
+        // Liberar URL
+        setTimeout(() => window.URL.revokeObjectURL(url), 100);
+        
+        showMsg("✅ Backup descargado correctamente. Guarda este archivo en un lugar seguro.", false);
+        
+        // Actualizar hora del último backup
+        updateLastBackupTime();
+        
       } catch (err) {
-        showMsg("No se pudo descargar el backup.", true);
+        showMsg(`❌ ${err.message || "No se pudo descargar el backup."}`, true);
+        
+      } finally {
+        // Restaurar botón
+        setTimeout(() => {
+          downloadBtn.disabled = false;
+          downloadBtn.innerHTML = '<i class="bi bi-download me-2"></i>Generar y Descargar Backup';
+          progressBar.classList.add('d-none');
+          progressFill.style.width = '0%';
+        }, 1000);
       }
     }
 
@@ -179,40 +703,140 @@
     // 📥 Restaurar backup
     // ===============================
     async function restaurarBackup() {
-      const file = document.getElementById("backupFile").files[0];
-
-      if (!file) return showMsg("Selecciona un archivo primero.", true);
-
+      const fileInput = document.getElementById("backupFile");
+      const file = fileInput.files[0];
+      const restoreBtn = document.getElementById("restoreBtn");
+      const progressBar = document.getElementById("restoreProgress");
+      const progressFill = progressBar.querySelector('.progress-bar');
+      
+      if (!file) {
+        showMsg("❌ Selecciona un archivo de backup primero.", true);
+        return;
+      }
+      
+      // Confirmar antes de restaurar
+      const confirmRestore = confirm("⚠️ ¡ADVERTENCIA!\n\nEsta acción SOBRESCRIBIRÁ todos los datos actuales.\n\n¿Estás seguro de que deseas continuar?\n\nAsegúrate de tener un backup reciente antes de proceder.");
+      
+      if (!confirmRestore) {
+        return;
+      }
+      
+      // Mostrar indicador de progreso
+      restoreBtn.disabled = true;
+      restoreBtn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Restaurando...';
+      progressBar.classList.remove('d-none');
+      progressFill.style.width = '20%';
+      
       const formData = new FormData();
       formData.append("dbfile", file);
       formData.append("restoreKey", "Cafecito2025Secret");
-
+      
       try {
+        progressFill.style.width = '50%';
+        
         const res = await fetch(`${API_URL}/restore`, {
           method: "POST",
           body: formData
         });
 
         const data = await res.json();
-
-        if (!res.ok) return showMsg(data.error || "Error restaurando.", true);
-
-        showMsg("Base restaurada correctamente 🎉");
+        
+        progressFill.style.width = '80%';
+        
+        if (!res.ok) {
+          throw new Error(data.error || "Error al restaurar el backup");
+        }
+        
+        progressFill.style.width = '100%';
+        
+        showMsg("✅ ¡Base de datos restaurada correctamente! 🎉\n\nEl sistema se ha actualizado con los datos del backup.", false);
+        
+        // Resetear formulario
+        fileInput.value = '';
+        document.getElementById('fileName').textContent = 'Ningún archivo seleccionado';
+        document.getElementById('fileName').classList.remove('text-success', 'fw-semibold');
+        
+        // Actualizar hora del último backup
+        updateLastBackupTime();
+        
       } catch (err) {
-        showMsg("Error subiendo el archivo.", true);
+        showMsg(`❌ ${err.message || "Error subiendo el archivo."}`, true);
+        
+      } finally {
+        // Restaurar botón
+        setTimeout(() => {
+          restoreBtn.disabled = false;
+          restoreBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Restaurar Base de Datos';
+          progressBar.classList.add('d-none');
+          progressFill.style.width = '0%';
+        }, 1500);
       }
     }
 
     // ===============================
-    // Mensajes Bootstrap
+    // 📊 Funciones auxiliares
     // ===============================
+    
+    // Mostrar mensajes
     function showMsg(text, isError = false) {
-      const div = document.getElementById("msg");
-      div.innerText = text;
-      div.className = "alert mt-4 " + (isError ? "alert-danger" : "alert-success");
-      div.classList.remove("d-none");
+      const msgDiv = document.getElementById("msg");
+      
+      // Crear alerta dinámica
+      const alert = document.createElement("div");
+      alert.className = `alert alert-dismissible fade show ${isError ? 'alert-danger' : 'alert-success'}`;
+      alert.innerHTML = `
+        <div class="d-flex align-items-center">
+          ${isError ? '<i class="bi bi-exclamation-octagon-fill me-3 fs-5"></i>' : '<i class="bi bi-check-circle-fill me-3 fs-5"></i>'}
+          <div class="flex-grow-1">${text}</div>
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+      
+      // Limpiar mensajes anteriores
+      msgDiv.innerHTML = '';
+      msgDiv.appendChild(alert);
+      
+      // Auto-ocultar después de 5 segundos si no es error
+      if (!isError) {
+        setTimeout(() => {
+          if (alert.parentNode) {
+            alert.classList.remove('show');
+            setTimeout(() => alert.remove(), 150);
+          }
+        }, 5000);
+      }
     }
+    
+    // Actualizar estado de conexión
+    function updateConnectionStatus() {
+      const statusEl = document.getElementById('connectionStatus');
+      const isOnline = navigator.onLine;
+      
+      if (isOnline) {
+        statusEl.innerHTML = `<i class="bi bi-wifi"></i> Conectado al servidor`;
+        statusEl.className = 'text-success';
+      } else {
+        statusEl.innerHTML = `<i class="bi bi-wifi-off"></i> Sin conexión`;
+        statusEl.className = 'text-warning';
+      }
+    }
+    
+    // Actualizar hora del último backup
+    function updateLastBackupTime() {
+      const timeEl = document.getElementById('lastBackupTime');
+      const now = new Date();
+      timeEl.textContent = now.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    // Detectar cambios en la conexión
+    window.addEventListener('online', updateConnectionStatus);
+    window.addEventListener('offline', updateConnectionStatus);
   </script>
-
 </body>
 </html>
