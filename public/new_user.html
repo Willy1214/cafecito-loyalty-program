@@ -3,85 +3,331 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crear Usuario</title>
-  <link 
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
-    rel="stylesheet"
-  >
+  <title>Crear Usuario - Sistema de Fidelidad</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    
+    .register-card {
+      max-width: 450px;
+      border-radius: 15px;
+      border: none;
+    }
+    
+    .btn-register {
+      padding: 10px;
+      font-weight: 600;
+    }
+    
+    .input-group-text {
+      background: #f8f9fa;
+      border-right: none;
+    }
+    
+    .form-control:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .password-toggle {
+      cursor: pointer;
+    }
+    
+    .password-toggle:hover {
+      color: #667eea;
+    }
+  </style>
 </head>
 
-<body class="d-flex align-items-center justify-content-center" 
-      style="height: 100vh; background-color: #7aedfa;">
-
-  <div class="card shadow p-4" style="width: 420px;">
+<body class="d-flex align-items-center justify-content-center p-3">
+  
+  <div class="card register-card shadow-lg p-4">
     
-    <h3 class="fw-bold text-center mb-3">Registrar nuevo usuario</h3>
+    <!-- Cabecera -->
+    <div class="text-center mb-4">
+      <i class="bi bi-person-plus-fill text-primary fs-1 d-block mb-2"></i>
+      <h3 class="fw-bold text-dark mb-1">Crear Nuevo Usuario</h3>
+      <p class="text-muted mb-0">Sistema de Fidelidad - Cafecito del Parque</p>
+    </div>
 
+    <!-- Formulario -->
     <form id="userForm">
+      
+      <!-- Nombre -->
+      <div class="mb-3">
+        <label for="nombre" class="form-label fw-semibold">Nombre completo</label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-person"></i>
+          </span>
+          <input 
+            type="text" 
+            id="nombre" 
+            class="form-control" 
+            placeholder="Juan Pérez"
+            required
+            autofocus
+          >
+        </div>
+      </div>
 
-      <label class="form-label">Nombre</label>
-      <input type="text" id="nombre" class="form-control mb-3" required>
+      <!-- Email -->
+      <div class="mb-3">
+        <label for="email" class="form-label fw-semibold">Correo electrónico</label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-envelope"></i>
+          </span>
+          <input 
+            type="email" 
+            id="email" 
+            class="form-control" 
+            placeholder="usuario@empresa.com"
+            required
+          >
+        </div>
+      </div>
 
-      <label class="form-label">Correo</label>
-      <input type="email" id="email" class="form-control mb-3" required>
+      <!-- Contraseña -->
+      <div class="mb-3">
+        <label for="password" class="form-label fw-semibold">Contraseña</label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-lock"></i>
+          </span>
+          <input 
+            type="password" 
+            id="password" 
+            class="form-control" 
+            placeholder="Mínimo 6 caracteres"
+            minlength="6"
+            required
+          >
+          <button 
+            class="btn btn-outline-secondary password-toggle" 
+            type="button" 
+            data-target="password"
+          >
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+        <div class="form-text">
+          <i class="bi bi-info-circle me-1"></i>La contraseña debe tener al menos 6 caracteres
+        </div>
+      </div>
 
-      <label class="form-label">Contraseña</label>
-      <input type="password" id="password" class="form-control mb-3" required>
+      <!-- Clave Maestra -->
+      <div class="mb-4">
+        <label for="masterKey" class="form-label fw-semibold">Clave Maestra</label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-key"></i>
+          </span>
+          <input 
+            type="password" 
+            id="masterKey" 
+            class="form-control" 
+            placeholder="Clave de administrador"
+            required
+          >
+          <button 
+            class="btn btn-outline-secondary password-toggle" 
+            type="button" 
+            data-target="masterKey"
+          >
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+        <div class="form-text">
+          <i class="bi bi-shield-lock me-1"></i>Solicita esta clave al administrador del sistema
+        </div>
+      </div>
 
-      <label class="form-label">Clave Maestra</label>
-      <input type="password" id="masterKey" class="form-control mb-3" required>
+      <!-- Botón de Registro -->
+      <button 
+        type="submit" 
+        class="btn btn-primary btn-register w-100 mb-3"
+        id="registerBtn"
+      >
+        <i class="bi bi-person-plus me-2"></i>Crear Usuario
+      </button>
 
-      <button class="btn btn-primary w-100">Crear usuario</button>
+      <!-- Enlace para volver al login -->
+      <div class="text-center">
+        <a href="login.html" class="text-decoration-none">
+          <i class="bi bi-arrow-left me-1"></i>Volver al inicio de sesión
+        </a>
+      </div>
 
-      <p id="msg" class="text-danger mt-3 text-center small"></p>
+      <!-- Mensajes -->
+      <div id="msg" class="alert alert-danger mt-3 d-none" role="alert"></div>
+      <div id="successMsg" class="alert alert-success mt-3 d-none" role="alert"></div>
     </form>
-  </div>
-   <script src="./resources/scripts/notifier.js"></script>
-   
-  <script>
-    const isLocal =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
 
+  </div>
+
+  <script>
+    // 🌐 Detectar entorno
+    const isLocal = window.location.hostname === "localhost" || 
+                    window.location.hostname === "127.0.0.1";
     const apiBase = isLocal
       ? "http://localhost:3000"
       : "https://cafecito-loyalty-program.onrender.com";
+    const apiURL = `${apiBase}/api/users/create-admin`;
 
-    document.getElementById("userForm").addEventListener("submit", async (e) => {
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', () => {
+      setupEventListeners();
+    });
+
+    // Configurar event listeners
+    function setupEventListeners() {
+      const form = document.getElementById('userForm');
+      
+      // Enviar formulario
+      form.addEventListener('submit', handleRegister);
+      
+      // Toggle para mostrar/ocultar contraseñas
+      document.querySelectorAll('.password-toggle').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const targetId = this.getAttribute('data-target');
+          const input = document.getElementById(targetId);
+          const type = input.type === 'password' ? 'text' : 'password';
+          
+          input.type = type;
+          this.innerHTML = type === 'password' 
+            ? '<i class="bi bi-eye"></i>' 
+            : '<i class="bi bi-eye-slash"></i>';
+        });
+      });
+      
+      // Validación en tiempo real
+      document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', () => {
+          hideMessages();
+        });
+      });
+    }
+
+    // Manejar registro
+    async function handleRegister(e) {
       e.preventDefault();
-
-      const nombre = document.getElementById("nombre").value.trim();
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value.trim();
-      const masterKey = document.getElementById("masterKey").value.trim();
-      const msg = document.getElementById("msg");
-
-      msg.textContent = "";
-
+      
+      const nombre = document.getElementById('nombre').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const masterKey = document.getElementById('masterKey').value.trim();
+      const btn = document.getElementById('registerBtn');
+      
+      // Ocultar mensajes anteriores
+      hideMessages();
+      
+      // Validación básica
+      if (!nombre || !email || !password || !masterKey) {
+        showError('Por favor, completa todos los campos.');
+        return;
+      }
+      
+      if (password.length < 6) {
+        showError('La contraseña debe tener al menos 6 caracteres.');
+        return;
+      }
+      
+      if (!isValidEmail(email)) {
+        showError('Por favor, ingresa un correo electrónico válido.');
+        return;
+      }
+      
+      // Mostrar loading
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Creando usuario...';
+      
       try {
-        const res = await fetch(`${apiBase}/api/users/create-admin`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nombre, email, password, masterKey }),
+        const res = await fetch(apiURL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nombre, email, password, masterKey })
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          notify("Usuario creado exitosamente", "success");
-
+          // Mostrar éxito
+          showSuccess('✅ Usuario creado exitosamente');
+          
+          // Redirigir después de 2 segundos
           setTimeout(() => {
-            window.location.href = "login.html"; 
-          }, 1500);
+            window.location.href = 'login.html';
+          }, 2000);
         } else {
-          notify("Error al crear usuario", "danger");
+          showError(data.error || 'Error al crear el usuario. Verifica la clave maestra.');
         }
       } catch (err) {
-        msg.textContent = "Error de conexión con el servidor.";
-        console.error(err);
+        showError('Error de conexión con el servidor.');
+        console.error('Error:', err);
+      } finally {
+        // Restaurar botón
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-person-plus me-2"></i>Crear Usuario';
       }
-    });
-  </script>
+    }
 
+    // Validar email
+    function isValidEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    }
+
+    // Mostrar error
+    function showError(message) {
+      const msgDiv = document.getElementById('msg');
+      msgDiv.textContent = message;
+      msgDiv.classList.remove('d-none');
+      
+      // Auto-ocultar después de 5 segundos
+      setTimeout(() => {
+        msgDiv.classList.add('d-none');
+      }, 5000);
+    }
+
+    // Mostrar éxito
+    function showSuccess(message) {
+      const msgDiv = document.getElementById('successMsg');
+      msgDiv.textContent = message;
+      msgDiv.classList.remove('d-none');
+    }
+
+    // Ocultar todos los mensajes
+    function hideMessages() {
+      document.getElementById('msg').classList.add('d-none');
+      document.getElementById('successMsg').classList.add('d-none');
+    }
+
+    // Notificación simple (si no tienes notifier.js)
+    function notify(message, type = 'info') {
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+      alert.style.top = '20px';
+      alert.style.right = '20px';
+      alert.style.zIndex = '9999';
+      alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      `;
+      
+      document.body.appendChild(alert);
+      
+      setTimeout(() => {
+        if (alert.parentNode) {
+          alert.classList.remove('show');
+          setTimeout(() => alert.remove(), 150);
+        }
+      }, 3000);
+    }
+  </script>
 </body>
 </html>
