@@ -28,62 +28,31 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
     
-    .btn-action {
-      padding: 5px 12px;
-      font-size: 14px;
-    }
-    
-    .customer-row:hover {
-      background-color: #f8f9fa;
-    }
-    
-    .points-badge {
-      font-size: 14px;
-      min-width: 50px;
-    }
-    
     @media (max-width: 768px) {
       .logo-container {
         width: 120px;
         height: 120px;
       }
-      
-      .btn-action {
-        font-size: 12px;
-        padding: 4px 8px;
-      }
-      
-      .table-responsive {
-        font-size: 14px;
-      }
     }
   </style>
 </head>
 
-<body class="pb-5">
-  
-  <!-- Header con logout -->
-  <header class="bg-white shadow-sm py-3 mb-4">
-    <div class="container">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h5 class="mb-0 text-primary fw-bold">
-            <i class="bi bi-cup-hot-fill me-2"></i>Cafecito del Parque
-          </h5>
-        </div>
-        <div>
-          <button id="logoutBtn" class="btn btn-outline-danger btn-sm">
-            <i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesión
-          </button>
-        </div>
-      </div>
-    </div>
-  </header>
+<body class="pb-4">
 
-  <main class="container">
+  <div class="container mt-4">
     
-    <!-- Encabezado principal -->
-    <div class="text-center mb-5">
+    <!-- Botón de logout -->
+    <div class="d-flex justify-content-end mb-3">
+      <button 
+        id="logoutBtn"
+        class="btn btn-danger btn-sm"
+      >
+        <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión
+      </button>
+    </div>
+
+    <!-- Encabezado centrado -->
+    <div class="text-center mb-4">
       <div class="logo-container">
         <img 
           src="./resources/img/logo_cafecito.jpg" 
@@ -91,51 +60,37 @@
           class="w-100 h-100 object-fit-cover"
         >
       </div>
-      <h1 class="fw-bold text-dark mb-2">Sistema de Fidelidad</h1>
-      <p class="text-muted lead">Gestiona clientes y puntos de recompensa</p>
+      <h1 class="fw-bold">Cafecito del Parque</h1>
+      <h4 class="text-muted">Sistema de puntos</h4>
     </div>
 
-    <!-- Panel para agregar cliente -->
+    <!-- Agregar cliente -->
     <div class="card p-4 mb-4">
-      <div class="d-flex align-items-center mb-3">
-        <i class="bi bi-person-plus-fill text-primary fs-4 me-3"></i>
-        <div>
-          <h4 class="fw-bold mb-1">Agregar Cliente</h4>
-          <p class="text-muted mb-0 small">Registra nuevos clientes en el sistema</p>
-        </div>
-      </div>
-      
+      <h4 class="mb-3">Agregar cliente</h4>
       <div class="input-group">
-        <span class="input-group-text">
-          <i class="bi bi-person"></i>
-        </span>
         <input 
           id="name" 
           type="text" 
-          class="form-control form-control-lg" 
-          placeholder="Nombre completo del cliente"
-          autofocus
+          class="form-control" 
+          placeholder="Nombre del cliente"
         >
-        <button id="addBtn" class="btn btn-primary btn-lg">
-          <i class="bi bi-plus-circle me-2"></i>Agregar
+        <button id="addBtn" class="btn btn-success">
+          <i class="bi bi-plus-circle me-1"></i>Agregar
         </button>
       </div>
     </div>
 
-    <!-- Panel de clientes -->
+    <!-- Lista de clientes -->
     <div class="card p-4">
-      <!-- Cabecera con título y búsqueda -->
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-        <div class="d-flex align-items-center">
-          <i class="bi bi-people-fill text-success fs-4 me-3"></i>
-          <div>
-            <h4 class="fw-bold mb-1">Lista de Clientes</h4>
-            <p class="text-muted mb-0 small" id="customerCount">Cargando...</p>
-          </div>
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-start mb-3 gap-3">
+        <div>
+          <h4 class="m-0">
+            <i class="bi bi-people-fill me-2"></i>Clientes
+          </h4>
         </div>
-        
-        <!-- Búsqueda -->
-        <div class="w-100 w-md-50" style="max-width: 400px;">
+
+        <!-- Search integrado -->
+        <div class="w-100 w-md-50" style="max-width: 420px;">
           <div class="input-group">
             <span class="input-group-text">
               <i class="bi bi-search"></i>
@@ -147,74 +102,48 @@
               placeholder="Buscar por nombre o ID..."
               aria-label="Buscar clientes"
             >
-            <button id="clearSearchBtn" class="btn btn-outline-secondary" title="Limpiar búsqueda">
+            <button id="clearSearchBtn" class="btn btn-outline-secondary" title="Limpiar">
               <i class="bi bi-x-lg"></i>
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Tabla de clientes -->
       <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
+        <table class="table table-striped table-hover mb-0">
+          <thead class="table-dark">
             <tr>
-              <th class="fw-semibold">ID</th>
-              <th class="fw-semibold">Nombre</th>
-              <th class="fw-semibold text-center">Puntos</th>
-              <th class="fw-semibold text-center">Acciones</th>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Puntos</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody id="customerTable">
             <tr>
-              <td colspan="4" class="text-center py-5">
+              <td colspan="4" class="text-center py-4">
                 <div class="spinner-border text-primary" role="status">
                   <span class="visually-hidden">Cargando...</span>
                 </div>
-                <p class="text-muted mt-2 mb-0">Cargando clientes...</p>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      
-      <!-- Mensaje cuando no hay resultados -->
-      <div id="noResults" class="text-center py-5 d-none">
-        <i class="bi bi-people text-muted fs-1 mb-3 d-block"></i>
-        <h5 class="text-muted">No se encontraron clientes</h5>
-        <p class="text-muted small">Agrega nuevos clientes para empezar</p>
-      </div>
     </div>
 
-    <!-- Botones de acción -->
-    <div class="text-center mt-4 mb-5">
-      <div class="d-flex flex-wrap justify-content-center gap-3">
-        <a id="backupAccessBtn" href="backup.html" class="btn btn-outline-primary">
-          <i class="bi bi-database me-2"></i>Panel de Backups
-        </a>
-        <button id="exportBtn" class="btn btn-outline-success">
-          <i class="bi bi-download me-2"></i>Exportar Datos
-        </button>
-        <button id="statsBtn" class="btn btn-outline-info">
-          <i class="bi bi-graph-up me-2"></i>Estadísticas
-        </button>
-      </div>
+    <!-- Botón para ir al panel de backups -->
+    <div class="text-center mt-4">
+      <a id="backupAccessBtn" href="backup.html" class="btn btn-outline-primary">
+        <i class="bi bi-database me-2"></i>Panel de Backups
+      </a>
     </div>
 
-    <!-- Información del sistema -->
-    <div class="text-center mt-5 pt-4 border-top">
-      <p class="text-muted small">
-        <i class="bi bi-info-circle me-1"></i>
-        Sistema de fidelidad v1.0 | Total de clientes: <span id="totalCustomers">0</span>
-      </p>
-    </div>
+  </div>
 
-  </main>
-
-  <!-- 🌐 Configuración de API -->
+  <!-- 🌐 Detecta entorno -->
   <script>
-    window.API_BASE = window.location.hostname === "localhost" || 
-                      window.location.hostname === "127.0.0.1"
+    window.API_BASE = window.location.origin.includes("localhost")
       ? "http://localhost:3000"
       : "https://cafecito-loyalty-program.onrender.com";
   </script>
@@ -229,104 +158,31 @@
   <script src="app.js"></script>
 
   <script>
-    // Configuración inicial
-    document.addEventListener('DOMContentLoaded', function() {
-      setupEventListeners();
-      
-      // Verificar autenticación
-      checkAuth();
+    // Configuración para limpiar búsqueda
+    document.getElementById("clearSearchBtn").addEventListener("click", () => {
+      const inp = document.getElementById("searchInput");
+      inp.value = "";
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
     });
 
-    // Configurar event listeners
-    function setupEventListeners() {
-      // Logout
-      document.getElementById('logoutBtn').addEventListener('click', logout);
+    // Configurar logout sin confirm duplicado
+    document.getElementById("logoutBtn").addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // Evitar otros eventos
       
-      // Limpiar búsqueda
-      document.getElementById('clearSearchBtn').addEventListener('click', clearSearch);
-      
-      // Botones adicionales (ejemplo)
-      document.getElementById('exportBtn')?.addEventListener('click', exportData);
-      document.getElementById('statsBtn')?.addEventListener('click', showStats);
-      
-      // Enter para agregar cliente
-      document.getElementById('name').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-          document.getElementById('addBtn').click();
-        }
-      });
-    }
-
-    // Verificar autenticación
-    function checkAuth() {
-      const token = localStorage.getItem('token');
-      const usuario = localStorage.getItem('usuario');
-      
-      if (!token || !usuario) {
-        window.location.href = 'login.html';
+      // Tu confirm.js ya manejará la confirmación
+      // Solo redirige si confirm.js no previene el evento
+      if (typeof window.handleLogout === 'function') {
+        window.handleLogout();
       }
-      
-      // Mostrar información del usuario
-      try {
-        const userData = JSON.parse(usuario);
-        document.getElementById('userInfo').textContent = userData.nombre || 'Usuario';
-      } catch (e) {
-        console.log('Error cargando datos de usuario');
+    });
+
+    // Enter para agregar cliente
+    document.getElementById("name").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        document.getElementById("addBtn").click();
       }
-    }
-
-    // Cerrar sesión
-    function logout() {
-      if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('usuario');
-        window.location.href = 'login.html';
-      }
-    }
-
-    // Limpiar búsqueda
-    function clearSearch() {
-      const searchInput = document.getElementById('searchInput');
-      searchInput.value = '';
-      searchInput.focus();
-      
-      // Disparar evento de input para actualizar
-      const event = new Event('input', { bubbles: true });
-      searchInput.dispatchEvent(event);
-    }
-
-    // Exportar datos (ejemplo)
-    function exportData() {
-      alert('Función de exportación - Pendiente de implementar');
-    }
-
-    // Mostrar estadísticas (ejemplo)
-    function showStats() {
-      alert('Estadísticas - Pendiente de implementar');
-    }
-
-    // Actualizar contador de clientes
-    function updateCustomerCount(count) {
-      const countElement = document.getElementById('customerCount');
-      const totalElement = document.getElementById('totalCustomers');
-      
-      if (countElement) {
-        countElement.textContent = `${count} cliente${count !== 1 ? 's' : ''} encontrado${count !== 1 ? 's' : ''}`;
-      }
-      
-      if (totalElement) {
-        totalElement.textContent = count;
-      }
-    }
-
-    // Exponer funciones globalmente para app.js
-    window.updateCustomerCount = updateCustomerCount;
-    window.showNoResults = function() {
-      document.getElementById('noResults').classList.remove('d-none');
-    };
-    window.hideNoResults = function() {
-      document.getElementById('noResults').classList.add('d-none');
-    };
+    });
   </script>
 
 </body>
