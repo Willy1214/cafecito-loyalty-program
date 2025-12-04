@@ -4,118 +4,255 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Inicio de Sesión - Sistema de Fidelidad</title>
-  <link 
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" 
-    rel="stylesheet"
-  >
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    
+    .login-card {
+      max-width: 400px;
+      border-radius: 15px;
+      border: none;
+    }
+    
+    .logo-container {
+      width: 100px;
+      height: 100px;
+      margin: -50px auto 20px;
+      background: white;
+      border-radius: 50%;
+      padding: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .btn-login {
+      padding: 10px;
+      font-weight: 600;
+    }
+    
+    .input-group-text {
+      background: #f8f9fa;
+      border-right: none;
+    }
+    
+    .form-control:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+    }
+  </style>
 </head>
 
-<body class="d-flex align-items-center justify-content-center" 
-      style="height: 100vh; background-color: #7aedfa;"> <!-- 💠 Turquesa -->
-
-  <div class="card shadow p-4 text-center" style="width: 380px;">
-
-    <!-- 🖼️ Logo -->
-    <img 
-      src="resources/img/logo_cafecito.jpg" 
-      alt="Logo Cafecito del Parque" 
-      width="120" 
-      height="120" 
-      class="mx-auto mb-3 rounded-circle shadow-sm"
-    >
-
-    <h3 class="mb-3 fw-bold">Cafecito del Parque</h3>
-    <h5 class="text-muted mb-4">Sistema de Fidelidad</h5>
-
-    <!-- Campos -->
-    <div class="text-start">
-      <label for="email" class="form-label">Correo electrónico</label>
-      <input 
-        type="email" 
-        id="email" 
-        class="form-control mb-3" 
-        placeholder="admin@empresa.com"
+<body class="d-flex align-items-center justify-content-center p-3">
+  
+  <div class="card login-card shadow-lg p-4">
+    
+    <!-- Logo -->
+    <div class="logo-container">
+      <img 
+        src="resources/img/logo_cafecito.jpg" 
+        alt="Logo Cafecito del Parque" 
+        class="w-100 h-100 rounded-circle object-fit-cover"
       >
+    </div>
 
-      <label for="password" class="form-label">Contraseña</label>
-      <input 
-        type="password" 
-        id="password" 
-        class="form-control mb-3" 
-        placeholder="••••••••"
-      >
+    <h3 class="text-center fw-bold text-dark mb-1">Cafecito del Parque</h3>
+    <p class="text-center text-muted mb-4">Sistema de Fidelidad</p>
 
-      <button id="loginBtn" class="btn btn-primary w-100">Entrar</button>
+    <!-- Formulario de Login -->
+    <form id="loginForm">
+      <!-- Email -->
+      <div class="mb-3">
+        <label for="email" class="form-label">Correo electrónico</label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-envelope"></i>
+          </span>
+          <input 
+            type="email" 
+            id="email" 
+            class="form-control" 
+            placeholder="admin@empresa.com"
+            required
+          >
+        </div>
+      </div>
 
+      <!-- Contraseña -->
+      <div class="mb-4">
+        <label for="password" class="form-label">Contraseña</label>
+        <div class="input-group">
+          <span class="input-group-text">
+            <i class="bi bi-lock"></i>
+          </span>
+          <input 
+            type="password" 
+            id="password" 
+            class="form-control" 
+            placeholder="••••••••"
+            required
+          >
+          <button 
+            class="btn btn-outline-secondary" 
+            type="button" 
+            id="togglePassword"
+          >
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Botón de Login -->
       <button 
-        id="createUserBtn" 
-        class="btn btn-outline-secondary w-100 mt-2"
+        type="submit" 
+        class="btn btn-primary btn-login w-100 mb-3"
+        id="loginBtn"
       >
-        Crear usuario
+        <i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión
       </button>
 
-      <!-- 🌟 Nuevo botón para backups -->
+      <!-- Botón Crear Usuario -->
+      <button 
+        type="button" 
+        class="btn btn-outline-secondary w-100 mb-3"
+        id="createUserBtn"
+      >
+        <i class="bi bi-person-plus me-2"></i>Crear Usuario
+      </button>
+
+      <!-- Botón Backups -->
       <a 
         href="backup.html" 
-        class="btn btn-outline-dark w-100 mt-3"
+        class="btn btn-outline-dark w-100"
       >
-        📦 Cargar copia de seguridad
+        <i class="bi bi-database me-2"></i>Cargar Backup
       </a>
 
-      <p id="msg" class="text-center mt-3 text-danger small"></p>
+      <!-- Mensajes de error -->
+      <div id="msg" class="alert alert-danger mt-3 d-none" role="alert"></div>
+    </form>
+
+    <!-- Información adicional -->
+    <div class="text-center mt-4">
+      <small class="text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        Para acceder al sistema de gestión de clientes
+      </small>
     </div>
   </div>
 
   <script>
-    // 🌐 Detecta entorno
-    const isLocal =
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-
+    // 🌐 Detectar entorno
+    const isLocal = window.location.hostname === "localhost" || 
+                    window.location.hostname === "127.0.0.1";
     const apiBase = isLocal
       ? "http://localhost:3000"
       : "https://cafecito-loyalty-program.onrender.com";
-
     const apiURL = `${apiBase}/api/users/login`;
 
-    // 🔐 Login
-    document.getElementById("loginBtn").addEventListener("click", async () => {
-      const email = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value.trim();
-      const msg = document.getElementById("msg");
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', () => {
+      setupEventListeners();
+      
+      // Auto-focus en el email
+      document.getElementById('email').focus();
+    });
 
-      msg.textContent = "";
+    // Configurar event listeners
+    function setupEventListeners() {
+      const form = document.getElementById('loginForm');
+      const toggleBtn = document.getElementById('togglePassword');
+      const passwordInput = document.getElementById('password');
+      
+      // Enviar formulario
+      form.addEventListener('submit', handleLogin);
+      
+      // Mostrar/ocultar contraseña
+      toggleBtn.addEventListener('click', () => {
+        const type = passwordInput.type === 'password' ? 'text' : 'password';
+        passwordInput.type = type;
+        toggleBtn.innerHTML = type === 'password' 
+          ? '<i class="bi bi-eye"></i>' 
+          : '<i class="bi bi-eye-slash"></i>';
+      });
+      
+      // Botón crear usuario
+      document.getElementById('createUserBtn').addEventListener('click', () => {
+        window.location.href = 'new_user.html';
+      });
+    }
 
+    // Manejar login
+    async function handleLogin(e) {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const msgDiv = document.getElementById('msg');
+      const btn = document.getElementById('loginBtn');
+      
+      // Resetear mensajes
+      msgDiv.classList.add('d-none');
+      msgDiv.textContent = '';
+      
+      // Validación básica
       if (!email || !password) {
-        msg.textContent = "Por favor ingresa tus credenciales.";
+        showError('Por favor, completa todos los campos.');
         return;
       }
-
+      
+      // Mostrar loading
+      btn.disabled = true;
+      btn.innerHTML = '<div class="spinner-border spinner-border-sm me-2"></div>Verificando...';
+      
       try {
         const res = await fetch(apiURL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
         });
 
         const data = await res.json();
 
         if (res.ok) {
-          localStorage.setItem("token", data.token);
-          localStorage.setItem("usuario", JSON.stringify(data.usuario));
-          window.location.href = "index.html";
+          // Guardar datos en localStorage
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('usuario', JSON.stringify(data.usuario));
+          
+          // Redirigir
+          window.location.href = 'index.html';
         } else {
-          msg.textContent = data.error || "Credenciales incorrectas.";
+          showError(data.error || 'Credenciales incorrectas.');
         }
       } catch (err) {
-        msg.textContent = "Error de conexión con el servidor.";
-        console.error("❌ Error:", err);
+        showError('Error de conexión con el servidor.');
+        console.error('Error:', err);
+      } finally {
+        // Restaurar botón
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Iniciar Sesión';
       }
-    });
+    }
 
-    // 👤 Crear usuario admin
-    document.getElementById("createUserBtn").addEventListener("click", () => {
-      window.location.href = "new_user.html";
+    // Mostrar error
+    function showError(message) {
+      const msgDiv = document.getElementById('msg');
+      msgDiv.textContent = message;
+      msgDiv.classList.remove('d-none');
+      
+      // Auto-ocultar después de 5 segundos
+      setTimeout(() => {
+        msgDiv.classList.add('d-none');
+      }, 5000);
+    }
+
+    // Enter para enviar
+    document.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.target.matches('#createUserBtn')) {
+        document.getElementById('loginBtn').click();
+      }
     });
   </script>
 </body>
