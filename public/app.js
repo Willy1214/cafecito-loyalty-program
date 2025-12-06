@@ -128,7 +128,7 @@ function renderCustomers(list) {
       <td>${c.nombre}</td>
       <td>${c.puntos}</td>
       <td>
-        <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">+1 pts</button>
+        <button class="btn btn-sm btn-success" onclick="addPoints(${c.id})">Modificar puntos</button>
         <button class="btn btn-sm btn-warning" onclick="redeemPoints(${c.id}, ${c.puntos})">🎁 Canjear</button>
         <button class="btn btn-sm btn-secondary" onclick="viewTransactions(${c.id})">📜 Ver historial</button>
         <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${c.id}, '${c.nombre}')">🗑️ Eliminar</button>
@@ -160,29 +160,41 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // =======================
-// 💰 Sumar puntos
+// 💰 Modificar puntos
 // =======================
 async function addPoints(id) {
   try {
+    const data = await adjustPointsDialog();
+    if (!data) return; // cancelado
+
+    const { puntos, motivo } = data;
+
     const res = await fetch(`${API_BASE}/${id}/puntos`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ puntos: 1, motivo: "Bonus" }),
+      body: JSON.stringify({ puntos, motivo }),
     });
 
-    const data = await res.json();
-    if (!res.ok) return notify(data.error || "Error al sumar puntos.", "error");
+    const json = await res.json();
 
-    notify("Punto agregado ✔️", "success");
+    if (!res.ok) {
+      notify(json.error || "Error al modificar puntos.", "error");
+      return;
+    }
+
+    notify("Puntos actualizados ✔️", "success");
     loadCustomers();
+
   } catch (err) {
-    console.error("❌ Error al sumar puntos:", err);
-    notify("No se pudieron agregar los puntos.", "error");
+    console.error(err);
+    notify("No se pudo actualizar.", "error");
   }
 }
+
+
 
 // =======================
 // 🎁 Canjear puntos
