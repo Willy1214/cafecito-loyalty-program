@@ -5,6 +5,7 @@ const express = require("express");
 const router = express.Router();
 const database = require("../database/db");
 const db = database.db;
+
 // ==========================
 // 📋 Obtener TODAS las transacciones
 // ==========================
@@ -13,12 +14,16 @@ router.get("/", (req, res) => {
     const query = `
       SELECT 
         t.id,
+        t.cliente_id,
+        t.usuario_id,
         c.nombre AS cliente_nombre,
+        u.nombre AS usuario_nombre,
         t.fecha,
         t.puntos,
         t.motivo
       FROM transacciones t
-      JOIN clientes c ON t.cliente_id = c.id
+      LEFT JOIN clientes c ON t.cliente_id = c.id
+      LEFT JOIN usuarios u ON t.usuario_id = u.id
       ORDER BY t.fecha DESC
     `;
     const transacciones = db.prepare(query).all();
@@ -39,10 +44,16 @@ router.get("/cliente/:id", (req, res) => {
     const query = `
       SELECT 
         t.id,
+        t.cliente_id,
+        t.usuario_id,
+        c.nombre AS cliente_nombre,
+        u.nombre AS usuario_nombre,
         t.fecha,
         t.puntos,
         t.motivo
       FROM transacciones t
+      LEFT JOIN clientes c ON t.cliente_id = c.id
+      LEFT JOIN usuarios u ON t.usuario_id = u.id
       WHERE t.cliente_id = ?
       ORDER BY t.fecha DESC
     `;
