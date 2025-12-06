@@ -6,51 +6,62 @@ const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
 
-const dbPath = process.env.DB_PATH || path.resolve(__dirname, "fidelidad.db");
+// ===============================
+// Configuración de entorno
+// ===============================
+const DB_PATH = process.env.DB_PATH || path.resolve(__dirname, "fidelidad.db");
 
-// -------------------------------
-// Detectar entorno (Railway friendly)
-// -------------------------------
-const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME || "").toLowerCase();
-const isDevOrSandbox =
-  !process.env.NODE_ENV ||
-  process.env.NODE_ENV === "development" ||
-  railwayEnv === "sandbox" ||
-  railwayEnv === "preview" ||
-  process.env.RAILWAY_PROJECT_NAME?.toLowerCase()?.includes("dev");
+const isDevelopment = () => {
+  const railwayEnv = (process.env.RAILWAY_ENVIRONMENT_NAME || "").toLowerCase();
+  return (
+    !process.env.NODE_ENV ||
+    process.env.NODE_ENV === "development" ||
+    railwayEnv === "sandbox" ||
+    railwayEnv === "preview" ||
+    process.env.RAILWAY_PROJECT_NAME?.toLowerCase()?.includes("dev")
+  );
+};
 
-if (isDevOrSandbox) {
-  try {
-    if (fs.existsSync(dbPath)) {
-      fs.unlinkSync(dbPath);
-      console.log("🧹 (sandbox/dev) Archivo de base de datos eliminado antes de abrir conexión.");
-    } else {
-      console.log("📂 (sandbox/dev) No existía base previa, se creará una nueva.");
+// ===============================
+// Manejo del archivo de base de datos
+// ===============================
+const handleDatabaseFile = () => {
+  if (isDevelopment()) {
+    try {
+      if (fs.existsSync(DB_PATH)) {
+        fs.unlinkSync(DB_PATH);
+        console.log("🧹 (sandbox/dev) Archivo de base de datos eliminado.");
+      } else {
+        console.log("📂 (sandbox/dev) Se creará una nueva base de datos.");
+      }
+    } catch (err) {
+      console.warn("⚠️ No se pudo eliminar el archivo DB:", err.message);
     }
-  } catch (err) {
-    console.warn("⚠️ (sandbox/dev) No se pudo eliminar el archivo DB antes de abrir:", err.message);
+  } else {
+    console.log("🏭 Producción - Base de datos persistente.");
   }
-} else {
-  console.log("🏭 Producción detectada — no se eliminará el archivo DB.");
-}
+};
 
 // ===============================
-// Abrir conexión
+// Conexión a la base de datos
 // ===============================
-let db;
-try {
-  db = new Database(dbPath);
-  console.log(`✅ Base de datos conectada en: ${dbPath}`);
-} catch (err) {
-  console.error("❌ Error al conectar la base de datos:", err.message);
-  process.exit(1);
-}
+const connectDatabase = () => {
+  try {
+    handleDatabaseFile();
+    const db = new Database(DB_PATH);
+    console.log(`✅ Base de datos conectada en: ${DB_PATH}`);
+    return db;
+  } catch (err) {
+    console.error("❌ Error al conectar la base de datos:", err.message);
+    process.exit(1);
+  }
+};
 
 // ===============================
-// CREACIÓN / ACTUALIZACIÓN DE TABLAS
+// Definición de tablas
 // ===============================
-const createTables = () => {
-  db.prepare(`
+const TABLE_SCHEMAS = {
+  usuarios: `
     CREATE TABLE IF NOT EXISTS usuarios (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
@@ -58,9 +69,9 @@ const createTables = () => {
       password TEXT NOT NULL,
       rol TEXT DEFAULT 'cliente'
     )
-  `).run();
-
-  db.prepare(`
+  `,
+  
+  clientes: `
     CREATE TABLE IF NOT EXISTS clientes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       nombre TEXT NOT NULL,
@@ -69,9 +80,9 @@ const createTables = () => {
       email TEXT,
       square_id TEXT UNIQUE
     )
-  `).run();
-
-  db.prepare(`
+  `,
+  
+  transacciones: `
     CREATE TABLE IF NOT EXISTS transacciones (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       cliente_id INTEGER,
@@ -80,37 +91,61 @@ const createTables = () => {
       motivo TEXT,
       FOREIGN KEY (cliente_id) REFERENCES clientes(id)
     )
-  `).run();
-
-  db.prepare(`
+  `,
+  
+  eventos: `
     CREATE TABLE IF NOT EXISTS eventos (
       id TEXT PRIMARY KEY,
       tipo TEXT,
       fecha TEXT
     )
-  `).run();
-
-  // 🔥 TABLA NUEVA — evita duplicados por order_id
-  db.prepare(`
+  `,
+  
+  ordenes: `
     CREATE TABLE IF NOT EXISTS ordenes (
       id TEXT PRIMARY KEY,
       fecha TEXT
     )
-  `).run();
-
-  console.log("📦 Tablas verificadas o creadas correctamente.");
+  `
 };
 
 // ===============================
-// Agregar columnas faltantes
+// Columnas adicionales requeridas
 // ===============================
-const ensureColumnExists = (tableName, columnName, columnType) => {
+const REQUIRED_COLUMNS = [
+  { table: 'clientes', column: 'email', type: 'TEXT' },
+  { table: 'clientes', column: 'square_id', type: 'TEXT UNIQUE' }
+];
+
+// ===============================
+// Inicialización de tablas
+// ===============================
+const initializeTables = (db) => {
+  console.log("📦 Creando/verificando tablas...");
+  
+  // Crear tablas principales
+  Object.entries(TABLE_SCHEMAS).forEach(([tableName, schema]) => {
+    db.prepare(schema).run();
+  });
+  
+  // Agregar columnas faltantes
+  REQUIRED_COLUMNS.forEach(({ table, column, type }) => {
+    ensureColumnExists(db, table, column, type);
+  });
+  
+  console.log("✅ Tablas inicializadas correctamente.");
+};
+
+// ===============================
+// Verificar/agregar columnas
+// ===============================
+const ensureColumnExists = (db, tableName, columnName, columnType) => {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
   const exists = columns.some(col => col.name === columnName);
 
   if (!exists) {
     try {
-      db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType};`).run();
+      db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType}`).run();
       console.log(`🆕 Columna '${columnName}' agregada a '${tableName}'.`);
     } catch (err) {
       console.error(`❌ Error agregando columna '${columnName}' a '${tableName}':`, err.message);
@@ -119,43 +154,48 @@ const ensureColumnExists = (tableName, columnName, columnType) => {
 };
 
 // ===============================
-// Inicialización
+// Funciones anti-duplicados para webhook
 // ===============================
-createTables();
+const createAntiDuplicateFunctions = (db) => ({
+  ordenYaProcesada: (orderId) => {
+    const row = db.prepare("SELECT id FROM ordenes WHERE id = ?").get(orderId);
+    return !!row;
+  },
+  
+  registrarOrdenProcesada: (orderId) => {
+    db.prepare(`
+      INSERT INTO ordenes (id, fecha)
+      VALUES (?, datetime('now'))
+    `).run(orderId);
+  }
+});
 
-ensureColumnExists("clientes", "email", "TEXT");
-ensureColumnExists("clientes", "square_id", "TEXT UNIQUE");
+// ===============================
+// Verificación inicial
+// ===============================
+const verifyInitialData = (db) => {
+  try {
+    const count = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get()?.cnt || 0;
+    console.log(`🔎 Clientes en tabla: ${count}`);
+  } catch (err) {
+    console.log("ℹ️ Tabla de clientes aún no tiene datos.");
+  }
+};
 
-try {
-  const cnt = db.prepare("SELECT COUNT(*) AS cnt FROM clientes").get()?.cnt || 0;
-  console.log(`🔎 Clientes en tabla: ${cnt}`);
-} catch {}
+// ===============================
+// Inicialización principal
+// ===============================
+const db = connectDatabase();
+initializeTables(db);
+verifyInitialData(db);
 
-console.log("✅ Base de datos lista.");
+const { ordenYaProcesada, registrarOrdenProcesada } = createAntiDuplicateFunctions(db);
 
+console.log("✅ Base de datos completamente inicializada.");
 
-// ======================================================
-// 🚀 FUNCIONES ANTI-DUPLICADOS PARA EL WEBHOOK
-// ======================================================
-
-// Verifica si un order_id ya fue procesado
-function ordenYaProcesada(orderId) {
-  const row = db.prepare("SELECT id FROM ordenes WHERE id = ?").get(orderId);
-  return !!row; // true si existe
-}
-
-// Marca una orden como procesada
-function registrarOrdenProcesada(orderId) {
-  db.prepare(`
-    INSERT INTO ordenes (id, fecha)
-    VALUES (?, datetime('now'))
-  `).run(orderId);
-}
-
-
-// ======================================================
-// EXPORTS
-// ======================================================
+// ===============================
+// Exportaciones
+// ===============================
 module.exports = {
   db,
   ordenYaProcesada,
