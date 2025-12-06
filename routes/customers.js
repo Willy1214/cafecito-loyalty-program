@@ -61,13 +61,20 @@ router.get("/", (req, res) => {
   }
 });
 
-
-// Actualizar puntos de cliente (sumar o restar)
+// ==========================
+// Actualizar puntos de cliente (sumar o restar) - CON USUARIO_ID
 // ==========================
 router.put("/:id/puntos", (req, res) => {
   try {
     const { id } = req.params;
     const { puntos, motivo } = req.body;
+
+    // 🔐 OBTENER USUARIO EN SESIÓN
+    const usuarioId = req.user?.id;
+    
+    if (!usuarioId) {
+      return res.status(401).json({ error: "Usuario no autenticado." });
+    }
 
     if (typeof puntos !== "number") {
       return res.status(400).json({ error: "El valor de puntos debe ser numérico." });
@@ -86,11 +93,11 @@ router.put("/:id/puntos", (req, res) => {
 
     const fecha = new Date().toISOString();
 
-    // 💾 Registrar transacción
+    // 💾 Registrar transacción CON usuario_id
     db.prepare(`
-      INSERT INTO transacciones (cliente_id, fecha, puntos, motivo)
-      VALUES (?, ?, ?, ?)
-    `).run(id, fecha, puntos, motivo || (puntos > 0 ? "Bonus" : "Canje de producto"));
+      INSERT INTO transacciones (cliente_id, usuario_id, fecha, puntos, motivo)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, usuarioId, fecha, puntos, motivo || (puntos > 0 ? "Bonus" : "Canje de producto"));
 
     // 🔁 Actualizar puntos del cliente
     db.prepare(`
@@ -108,7 +115,6 @@ router.put("/:id/puntos", (req, res) => {
     res.status(500).json({ error: "Error al actualizar puntos." });
   }
 });
-
 
 // ==========================
 // ❌ Eliminar cliente por ID (sincronizado con Square)
@@ -151,5 +157,67 @@ router.delete("/:id", async (req, res) => {
     res.status(500).json({ error: "Error eliminando cliente." });
   }
 });
+
+// ==========================
+// 🆕 Sincronizar puntos con Square (si aplica)
+// ==========================
+router.post("/:id/sync-square", async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Obtener datos del cliente
+    const cliente = db.prepare("SELECT * FROM clientes WHERE id = ?").get(id);
+    
+    if (!cliente) {
+      return res.status(404).json({ error: "Cliente no encontrado." });
+    }
+
+    // Solo sincronizar si tiene square_id
+    if (!cliente.square_id) {
+      return res.json({ 
+        mensaje: "Cliente no tiene ID de Square, no se requiere sincronización." 
+      });
+    }
+
+    const { customersApi } = squareClient;
+    
+    // Actualizar notas del cliente en Square con los puntos actuales
+    try {
+      await customersApi.updateCustomer(cliente.square_id, {
+        note: `Puntos de fidelidad: ${cliente.puntos}`,
+        version: await getCustomerVersion(cliente.square_id)
+      });
+      
+      console.log(`🔄 Puntos sincronizados con Square para ${cliente.nombre}: ${cliente.puntos}`);
+      
+      res.json({ 
+        mensaje: `Puntos sincronizados con Square: ${cliente.puntos} puntos`,
+        success: true 
+      });
+      
+    } catch (squareErr) {
+      console.error("❌ Error sincronizando con Square:", squareErr.message);
+      res.status(500).json({ error: "Error al sincronizar con Square." });
+    }
+
+  } catch (err) {
+    console.error("❌ Error en sync-square:", err.message);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+// ==========================
+// 🆕 Función auxiliar para obtener versión del cliente en Square
+// ==========================
+async function getCustomerVersion(squareId) {
+  try {
+    const { customersApi } = squareClient;
+    const response = await customersApi.retrieveCustomer(squareId);
+    return response.result.customer.version;
+  } catch (err) {
+    console.error("❌ Error obteniendo versión del cliente:", err.message);
+    return 0; // Valor por defecto
+  }
+}
 
 module.exports = router;
