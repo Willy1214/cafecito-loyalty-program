@@ -243,13 +243,13 @@
     async function restaurarBackup() {
       const file = document.getElementById("backupFile").files[0];
       const btn = document.getElementById("restoreBtn");
-      
+      const restaurarBd = await confirmDialog("⚠️ Esto sobrescribirá todos los datos actuales. ¿Continuar?");
       if (!file) {
         showMsg("Selecciona un archivo", true);
         return;
       }
-      
-      if (!confirmDialog("⚠️ Esto sobrescribirá todos los datos actuales. ¿Continuar?")) {
+  
+      if (!restaurarBd) {
         return;
       }
       
