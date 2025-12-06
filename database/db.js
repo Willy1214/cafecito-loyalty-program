@@ -86,10 +86,12 @@ const TABLE_SCHEMAS = {
     CREATE TABLE IF NOT EXISTS transacciones (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       cliente_id INTEGER,
+      usuario_id INTEGER,        -- ← NUEVO: ID del usuario que realizó la transacción
       fecha TEXT,
       puntos INTEGER,
       motivo TEXT,
-      FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+      FOREIGN KEY (cliente_id) REFERENCES clientes(id),
+      FOREIGN KEY (usuario_id) REFERENCES usuarios(id)  -- ← NUEVA relación
     )
   `,
   
@@ -114,7 +116,8 @@ const TABLE_SCHEMAS = {
 // ===============================
 const REQUIRED_COLUMNS = [
   { table: 'clientes', column: 'email', type: 'TEXT' },
-  { table: 'clientes', column: 'square_id', type: 'TEXT UNIQUE' }
+  { table: 'clientes', column: 'square_id', type: 'TEXT UNIQUE' },
+  { table: 'transacciones', column: 'usuario_id', type: 'INTEGER' }  // ← NUEVO
 ];
 
 // ===============================
@@ -183,11 +186,42 @@ const verifyInitialData = (db) => {
 };
 
 // ===============================
+// Verificar datos de usuario demo
+// ===============================
+const createDemoUserIfNeeded = (db) => {
+  try {
+    const userCount = db.prepare("SELECT COUNT(*) as cnt FROM usuarios").get()?.cnt || 0;
+    
+    if (userCount === 0) {
+      console.log("👤 No hay usuarios. Creando usuario demo...");
+      
+      // Crear usuario administrador demo
+      const demoPassword = require('crypto').createHash('sha256').update('admin123').digest('hex');
+      
+      db.prepare(`
+        INSERT INTO usuarios (nombre, email, password, rol)
+        VALUES (?, ?, ?, ?)
+      `).run(
+        'Administrador Demo',
+        'admin@demo.com',
+        demoPassword,
+        'admin'
+      );
+      
+      console.log("✅ Usuario demo creado: admin@demo.com / admin123");
+    }
+  } catch (err) {
+    console.log("⚠️ No se pudo crear usuario demo:", err.message);
+  }
+};
+
+// ===============================
 // Inicialización principal
 // ===============================
 const db = connectDatabase();
 initializeTables(db);
 verifyInitialData(db);
+createDemoUserIfNeeded(db);  // ← NUEVO: Crear usuario demo si no existe
 
 const { ordenYaProcesada, registrarOrdenProcesada } = createAntiDuplicateFunctions(db);
 
