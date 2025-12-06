@@ -12,8 +12,17 @@
 
   <div class="container mt-4">
     
-    <!-- Botón de logout -->
-    <div class="d-flex justify-content-end mb-4">
+    <!-- Header con bienvenida y logout -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <!-- Bienvenida -->
+      <div>
+        <span class="text-muted">
+          <i class="bi bi-person-circle me-2"></i>
+          <span id="welcomeMessage">Cargando...</span>
+        </span>
+      </div>
+      
+      <!-- Logout -->
       <button 
         id="logoutBtn"
         class="btn btn-outline-danger btn-sm"
@@ -144,35 +153,62 @@
   <script src="app.js"></script>
 
   <script>
-    // Configuración para limpiar búsqueda
-    document.getElementById("clearSearchBtn").addEventListener("click", () => {
-      const inp = document.getElementById("searchInput");
-      inp.value = "";
-      inp.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-
-    // Configurar logout sin confirm duplicado
-    document.getElementById("logoutBtn").addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation(); // Evitar otros eventos
-      
-      // Tu confirm.js ya manejará la confirmación
-      if (typeof window.handleLogout === 'function') {
-        window.handleLogout();
-      }
-    });
-
-    // Enter para agregar cliente
-    document.getElementById("name").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") {
-        document.getElementById("addBtn").click();
-      }
-    });
-
-    // Auto-focus en el campo de nombre
+    // Configuración inicial
     document.addEventListener('DOMContentLoaded', function() {
-      document.getElementById('name').focus();
+      // Mostrar bienvenida con nombre de usuario
+      showWelcomeMessage();
+      
+      // Configurar otros event listeners
+      setupEventListeners();
     });
+
+    // Mostrar mensaje de bienvenida
+    function showWelcomeMessage() {
+      const welcomeElement = document.getElementById('welcomeMessage');
+      try {
+        const usuario = localStorage.getItem('usuario');
+        if (usuario) {
+          const userData = JSON.parse(usuario);
+          const nombre = userData.nombre || userData.email || 'Usuario';
+          welcomeElement.textContent = `Bienvenido, ${nombre}`;
+        } else {
+          welcomeElement.textContent = 'Bienvenido';
+        }
+      } catch (error) {
+        console.log('Error cargando datos de usuario:', error);
+        welcomeElement.textContent = 'Bienvenido';
+      }
+    }
+
+    // Configurar event listeners
+    function setupEventListeners() {
+      // Limpiar búsqueda
+      document.getElementById("clearSearchBtn").addEventListener("click", () => {
+        const inp = document.getElementById("searchInput");
+        inp.value = "";
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+      // Configurar logout
+      document.getElementById("logoutBtn").addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (typeof window.handleLogout === 'function') {
+          window.handleLogout();
+        }
+      });
+
+      // Enter para agregar cliente
+      document.getElementById("name").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          document.getElementById("addBtn").click();
+        }
+      });
+
+      // Auto-focus en el campo de nombre
+      document.getElementById('name').focus();
+    }
   </script>
 
 </body>
