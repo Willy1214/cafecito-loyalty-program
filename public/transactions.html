@@ -3,95 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Historial de Transacciones - Sistema de Fidelidad</title>
+  <title>Historial de transacciones</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  <style>
-    body {
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      min-height: 100vh;
-    }
-    
-    .card {
-      border: none;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    
-    .badge-points {
-      font-size: 14px;
-      padding: 4px 10px;
-    }
-    
-    @media (max-width: 768px) {
-      .table-responsive {
-        font-size: 14px;
-      }
-      
-      h1 {
-        font-size: 1.8rem;
-      }
-    }
-  </style>
 </head>
-
-<body class="pb-4">
+<body class="bg-light">
   
-  <!-- Header con logout -->
   <div class="container mt-4">
-    <div class="d-flex justify-content-end mb-3">
+    
+    <!-- Botón de logout arriba a la derecha -->
+    <div class="d-flex justify-content-end mb-4">
       <button id="logoutBtn" class="btn btn-outline-danger btn-sm">
         <i class="bi bi-box-arrow-right me-1"></i>Cerrar sesión
       </button>
     </div>
-  </div>
 
-  <div class="container">
-    <!-- Título -->
-    <div class="text-center mb-4">
-      <i class="bi bi-receipt-cutoff text-primary fs-1 d-block mb-2"></i>
-      <h1 class="fw-bold">Historial de Transacciones</h1>
-      <p class="text-muted">Registro de movimientos de puntos</p>
-    </div>
+    <!-- Título principal -->
+    <h1 class="text-center mb-4">
+      <i class="bi bi-receipt me-2"></i>Historial de transacciones
+    </h1>
 
-    <!-- Tabla de transacciones -->
-    <div class="card p-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="fw-bold mb-0">
-          <i class="bi bi-clock-history me-2"></i>Transacciones
-        </h5>
-        <span id="transactionCount" class="badge bg-secondary">Cargando...</span>
-      </div>
-      
-      <div class="table-responsive">
-        <table class="table table-hover mb-0">
-          <thead class="table-light">
-            <tr>
-              <th class="fw-semibold">ID</th>
-              <th class="fw-semibold">Cliente</th>
-              <th class="fw-semibold">Fecha</th>
-              <th class="fw-semibold text-center">Puntos</th>
-              <th class="fw-semibold">Motivo</th>
-            </tr>
-          </thead>
-          <tbody id="transactionsTable">
-            <tr>
-              <td colspan="5" class="text-center py-5">
-                <div class="spinner-border text-primary" role="status">
-                  <span class="visually-hidden">Cargando...</span>
-                </div>
-                <p class="text-muted mt-2 mb-0">Cargando transacciones...</p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      
-      <!-- Mensaje cuando no hay transacciones -->
-      <div id="noTransactions" class="text-center py-5 d-none">
-        <i class="bi bi-receipt text-muted fs-1 mb-3 d-block"></i>
-        <h5 class="text-muted">No hay transacciones registradas</h5>
-        <p class="text-muted small">Realiza transacciones para ver el historial</p>
+    <!-- Tarjeta con tabla -->
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th class="fw-semibold">ID</th>
+                <th class="fw-semibold">Cliente</th>
+                <th class="fw-semibold">Fecha</th>
+                <th class="fw-semibold text-center">Puntos</th>
+                <th class="fw-semibold">Motivo</th>
+              </tr>
+            </thead>
+            <tbody id="transactionsTable">
+              <tr>
+                <td colspan="5" class="text-center py-4">
+                  <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                  </div>
+                  <span class="text-muted ms-2">Cargando transacciones...</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -101,54 +58,36 @@
         <i class="bi bi-arrow-left me-2"></i>Volver al inicio
       </button>
     </div>
+
   </div>
 
   <script>
     // =======================
-    // 🌐 Detectar entorno
+    // 🌐 Detectar entorno (local o producción)
     // =======================
-    const isLocal = window.location.hostname === "localhost" || 
-                    window.location.hostname === "127.0.0.1";
+    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     const API_BASE = isLocal
       ? "http://localhost:3000"
       : "https://cafecito-loyalty-program.onrender.com";
 
     // =======================
-    // 🔐 Verificar sesión
+    // 🔐 Verificar sesión activa
     // =======================
     const token = localStorage.getItem("token");
     if (!token) {
       window.location.href = "login.html";
     }
 
+    // =======================
+    // 🚀 Cargar datos
+    // =======================
     const clienteId = localStorage.getItem("clienteId");
     const apiURL = clienteId
       ? `${API_BASE}/api/transactions/cliente/${clienteId}`
       : `${API_BASE}/api/transactions`;
 
     // =======================
-    // 🚀 Inicialización
-    // =======================
-    document.addEventListener("DOMContentLoaded", () => {
-      setupEventListeners();
-      loadTransactions();
-    });
-
-    // =======================
-    // 🎯 Configurar eventos
-    // =======================
-    function setupEventListeners() {
-      // Logout
-      document.getElementById("logoutBtn").addEventListener("click", logout);
-      
-      // Volver al inicio
-      document.getElementById("backBtn").addEventListener("click", () => {
-        window.history.back();
-      });
-    }
-
-    // =======================
-    // 🔄 Cargar transacciones
+    // 📊 Función principal para cargar transacciones
     // =======================
     async function loadTransactions() {
       try {
@@ -158,111 +97,80 @@
           },
         });
 
+        const table = document.getElementById("transactionsTable");
+
         if (res.status === 401 || res.status === 403) {
-          showSessionError();
+          alert("⚠️ Tu sesión ha expirado. Inicia sesión nuevamente.");
+          localStorage.clear();
+          window.location.href = "login.html";
           return;
         }
 
-        if (!res.ok) throw new Error("Error en la respuesta del servidor");
+        if (!res.ok) throw new Error("HTTP " + res.status);
 
         const data = await res.json();
-        displayTransactions(data);
+
+        if (!Array.isArray(data) || data.length === 0) {
+          table.innerHTML = `
+            <tr>
+              <td colspan="5" class="text-center py-5">
+                <i class="bi bi-receipt text-muted fs-4 d-block mb-2"></i>
+                <span class="text-muted">Sin transacciones registradas.</span>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        table.innerHTML = data.map(t => `
+          <tr>
+            <td class="text-muted small">${t.id}</td>
+            <td>${t.cliente_nombre || "—"}</td>
+            <td class="small">${new Date(t.fecha).toLocaleString()}</td>
+            <td class="text-center">
+              <span class="badge ${t.puntos >= 0 ? 'bg-success' : 'bg-danger'}">
+                ${t.puntos >= 0 ? '+' : ''}${t.puntos}
+              </span>
+            </td>
+            <td>${t.motivo}</td>
+          </tr>
+        `).join("");
 
       } catch (err) {
         console.error("❌ Error cargando transacciones:", err);
-        showError();
+        document.getElementById("transactionsTable").innerHTML = `
+          <tr>
+            <td colspan="5" class="text-center py-5">
+              <i class="bi bi-exclamation-triangle text-danger me-2"></i>
+              <span class="text-danger">Error al cargar datos.</span>
+            </td>
+          </tr>
+        `;
       }
     }
 
     // =======================
-    // 📊 Mostrar transacciones
+    // 🎯 Configurar eventos cuando el DOM esté listo
     // =======================
-    function displayTransactions(data) {
-      const table = document.getElementById("transactionsTable");
-      const noTransactions = document.getElementById("noTransactions");
-      const countElement = document.getElementById("transactionCount");
-
-      if (!Array.isArray(data) || data.length === 0) {
-        table.innerHTML = '';
-        noTransactions.classList.remove("d-none");
-        countElement.textContent = "0 transacciones";
-        return;
-      }
-
-      noTransactions.classList.add("d-none");
-      countElement.textContent = `${data.length} transacción${data.length !== 1 ? 'es' : ''}`;
-
-      table.innerHTML = data.map(t => `
-        <tr>
-          <td class="text-muted">${t.id}</td>
-          <td class="fw-medium">${t.cliente_nombre || "—"}</td>
-          <td class="text-muted small">${formatDate(t.fecha)}</td>
-          <td class="text-center">
-            <span class="badge ${t.puntos >= 0 ? 'bg-success' : 'bg-danger'} badge-points">
-              ${t.puntos >= 0 ? '+' : ''}${t.puntos}
-            </span>
-          </td>
-          <td>${t.motivo}</td>
-        </tr>
-      `).join("");
-    }
-
-    // =======================
-    // 📅 Formatear fecha
-    // =======================
-    function formatDate(dateString) {
-      try {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('es-ES', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      } catch (e) {
-        return dateString;
-      }
-    }
-
-    // =======================
-    // 🚪 Cerrar sesión
-    // =======================
-    function logout() {
-      if (confirm("¿Estás seguro de que deseas cerrar sesión?")) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
-        localStorage.removeItem("clienteId");
-        window.location.href = "login.html";
-      }
-    }
-
-    // =======================
-    // ⚠️ Mostrar error de sesión
-    // =======================
-    function showSessionError() {
-      alert("⚠️ Tu sesión ha expirado. Inicia sesión nuevamente.");
-      localStorage.clear();
-      window.location.href = "login.html";
-    }
-
-    // =======================
-    // ❌ Mostrar error general
-    // =======================
-    function showError() {
-      document.getElementById("transactionsTable").innerHTML = `
-        <tr>
-          <td colspan="5" class="text-center py-5">
-            <i class="bi bi-exclamation-triangle text-danger fs-1 d-block mb-2"></i>
-            <h5 class="text-danger">Error al cargar datos</h5>
-            <p class="text-muted small">Intenta recargar la página</p>
-            <button class="btn btn-sm btn-outline-primary mt-2" onclick="loadTransactions()">
-              <i class="bi bi-arrow-clockwise me-1"></i>Reintentar
-            </button>
-          </td>
-        </tr>
-      `;
-    }
+    document.addEventListener("DOMContentLoaded", () => {
+      // Cargar transacciones
+      loadTransactions();
+      
+      // Configurar logout
+      document.getElementById("logoutBtn").addEventListener("click", () => {
+        if (confirm("¿Estás seguro de que deseas cerrar sesión?")) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("usuario");
+          localStorage.removeItem("clienteId");
+          window.location.href = "login.html";
+        }
+      });
+      
+      // Configurar botón de volver
+      document.getElementById("backBtn").addEventListener("click", () => {
+        window.history.back();
+      });
+    });
   </script>
 </body>
 </html>
